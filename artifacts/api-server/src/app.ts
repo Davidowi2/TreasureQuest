@@ -1,10 +1,19 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import cookieParser from "cookie-parser";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 
 const app: Express = express();
+const httpServer = createServer(app);
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: "*",
+  },
+});
 
 app.use(
   pinoHttp({
@@ -25,10 +34,15 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true,
+}));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-export default app;
+export { app, httpServer, io };
+

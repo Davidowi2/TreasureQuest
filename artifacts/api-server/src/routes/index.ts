@@ -1,8 +1,18 @@
-import { Router, type IRouter } from "express";
+import { Router } from "express";
 import healthRouter from "./health";
+import authRouter from "./auth";
+import huntsRouter from "./hunts";
+import cluesRouter from "./clues";
+import teamsRouter from "./teams";
+import gameRouter from "./game";
 
-const router: IRouter = Router();
+const router = Router();
 
-router.use(healthRouter);
+router.use("/health", healthRouter);
+router.use("/v1/auth", authRouter);
+router.use("/v1/hunts", huntsRouter);
+router.use("/v1/clues", cluesRouter);
+router.use("/v1/teams", teamsRouter);
+router.use("/v1/game", gameRouter);
 
 export default router;
