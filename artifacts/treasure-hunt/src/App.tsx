@@ -20,6 +20,7 @@ import PlayerDashboard from "@/pages/PlayerDashboard";
 import NotFound from "@/pages/not-found";
 import Leaderboard from "@/pages/Leaderboard";
 import HuntDetail from "@/pages/HuntDetail";
+import Achievements from "@/pages/Achievements";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/signup" component={Signup} />
       
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/achievements" component={Achievements} />
 
       <Route path="/hunts" component={HuntDiscovery} />
       <Route path="/hunts/new" component={CreateHunt} />

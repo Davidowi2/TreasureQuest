@@ -1,18 +1,34 @@
+import { useState, useEffect } from "react";
 import { useRoute, Link, useLocation } from "wouter";
 import { Trophy, Clock, Target, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppContext } from "@/context/AppContext";
+import { useAppContext, evaluateAchievements, ALL_ACHIEVEMENTS, UserAchievement } from "@/context/AppContext";
 import { ConfettiEffect } from "@/components/ConfettiEffect";
+import { AchievementBadge } from "@/components/AchievementBadge";
 
 export default function GameComplete() {
   const [, params] = useRoute("/game/:teamId/complete");
   const [, setLocation] = useLocation();
-  const { teams, hunts } = useAppContext();
+  const { currentUser, userAchievements, awardAchievements, teams, hunts } = useAppContext();
 
   const teamId = params?.teamId;
   const team = teams.find(t => t.id === teamId);
   const hunt = team ? hunts.find(h => h.id === team.huntId) : null;
+
+  const [newlyEarned, setNewlyEarned] = useState<UserAchievement[]>([]);
+  const [hasChecked, setHasChecked] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser || hasChecked || !team) return;
+    setHasChecked(true);
+    const existing = userAchievements[currentUser.id] || [];
+    const newIds = evaluateAchievements(currentUser.id, teams, hunts, existing);
+    if (newIds.length > 0) {
+      const awarded = awardAchievements(currentUser.id, newIds, team.huntId, team.name);
+      setNewlyEarned(awarded);
+    }
+  }, [currentUser, hasChecked, team, teams, hunts, userAchievements, awardAchievements]);
 
   if (!team || !hunt) {
     return <div className="p-8 text-center">Not found.</div>;
@@ -62,6 +78,32 @@ export default function GameComplete() {
             </CardContent>
           </Card>
         </div>
+
+        {newlyEarned.length > 0 && (
+          <div className="w-full bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 mb-8">
+            <h3 className="font-bold text-lg mb-1 text-amber-800 dark:text-amber-300 flex items-center gap-2">
+              <Trophy size={18} /> New Trophies Unlocked!
+            </h3>
+            <p className="text-sm text-amber-700 dark:text-amber-400 mb-4">
+              You earned {newlyEarned.length} new achievement{newlyEarned.length > 1 ? 's' : ''}
+            </p>
+            <div className="flex gap-4 justify-center flex-wrap">
+              {newlyEarned.map(ua => {
+                const def = ALL_ACHIEVEMENTS.find(a => a.id === ua.achievementId);
+                if (!def) return null;
+                return (
+                  <div key={ua.achievementId} className="flex flex-col items-center gap-2">
+                    <AchievementBadge achievement={def} earned={true} animate={true} size="md" />
+                    <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">{def.title}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <Link href="/achievements" className="mt-4 block text-center text-sm text-amber-700 dark:text-amber-400 underline underline-offset-2">
+              View all trophies
+            </Link>
+          </div>
+        )}
 
         {leaderboard.length > 0 && (
           <div className="w-full bg-card rounded-2xl border p-6 mb-8 text-left shadow-sm">

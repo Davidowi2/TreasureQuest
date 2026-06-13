@@ -5,6 +5,41 @@ export type Difficulty = "easy" | "medium" | "hard";
 type HuntStatus = "draft" | "published" | "archived";
 type TeamStatus = "lobby" | "active" | "complete";
 
+export type AchievementRarity = "common" | "rare" | "epic" | "legendary";
+
+export type Achievement = {
+  id: string;
+  title: string;
+  description: string;       // what you did to earn it
+  howTo: string;             // hint for locked state: "Complete your first hunt"
+  icon: string;              // lucide icon name as string (used for lookup)
+  rarity: AchievementRarity;
+  category: "explorer" | "creator" | "team" | "speed" | "mastery";
+};
+
+export type UserAchievement = {
+  achievementId: string;
+  userId: string;
+  earnedAt: string;          // ISO date
+  huntId?: string;           // which hunt triggered it
+  teamName?: string;
+};
+
+export const ALL_ACHIEVEMENTS: Achievement[] = [
+  { id: "first_steps",    title: "First Steps",      description: "Completed your very first hunt",                howTo: "Complete any hunt",                        icon: "Compass",    rarity: "common",    category: "explorer" },
+  { id: "team_spirit",    title: "Team Spirit",       description: "Completed a hunt with 3 or more teammates",   howTo: "Finish a hunt with 3+ team members",       icon: "Users",      rarity: "common",    category: "team"     },
+  { id: "comeback_kid",   title: "Comeback Kid",      description: "Finished a hunt after 5+ failed attempts",    howTo: "Get 5+ fails and still complete the hunt", icon: "RefreshCw",  rarity: "common",    category: "explorer" },
+  { id: "map_maker",      title: "Map Maker",         description: "Published your first hunt as a creator",      howTo: "Create and publish a hunt",                icon: "MapPin",     rarity: "common",    category: "creator"  },
+  { id: "hard_boiled",    title: "Hard Boiled",       description: "Conquered a hard difficulty hunt",            howTo: "Complete a hunt rated Hard",               icon: "Flame",      rarity: "rare",      category: "mastery"  },
+  { id: "perfectionist",  title: "Perfectionist",     description: "Completed a hunt with zero failed attempts",  howTo: "Finish a hunt without a single fail",      icon: "Target",     rarity: "rare",      category: "mastery"  },
+  { id: "speed_demon",    title: "Speed Demon",        description: "Blasted through a hunt in under 20 minutes", howTo: "Complete any hunt in under 20 minutes",    icon: "Zap",        rarity: "rare",      category: "speed"    },
+  { id: "riddle_master",  title: "Riddle Master",     description: "Completed 3 riddle-type hunts",               howTo: "Finish 3 Riddle hunts",                    icon: "Brain",      rarity: "rare",      category: "mastery"  },
+  { id: "lens_hero",      title: "Lens Hero",         description: "Completed 3 photography-type hunts",          howTo: "Finish 3 Photography hunts",               icon: "Camera",     rarity: "rare",      category: "mastery"  },
+  { id: "lightning_fast", title: "Lightning Fast",    description: "Finished a hunt in under 15 minutes",         howTo: "Complete any hunt in under 15 minutes",    icon: "Timer",      rarity: "epic",      category: "speed"    },
+  { id: "type_collector", title: "Type Collector",    description: "Completed all 4 hunt types",                  howTo: "Finish one hunt of every type",            icon: "Layers",     rarity: "epic",      category: "mastery"  },
+  { id: "hunt_legend",    title: "Hunt Legend",       description: "Completed 5 or more hunts",                   howTo: "Finish 5 hunts total",                     icon: "Crown",      rarity: "legendary", category: "explorer" },
+];
+
 export type User = { id: string; name: string; email: string; role: Role; avatar?: string; };
 export type Clue = { id: string; huntId: string; order: number; hint: string; hintUnlockText: string; mediaUrl?: string; referenceImageUrl?: string; };
 export type Hunt = { 
@@ -24,6 +59,48 @@ export type Hunt = {
 export type TeamMember = { userId: string; name: string; isActive: boolean; isLeader: boolean; };
 export type Team = { id: string; huntId: string; name: string; inviteCode: string; members: TeamMember[]; status: TeamStatus; currentClueIndex: number; startTime?: string; endTime?: string; failedAttempts: number; completedAt?: string; totalTime?: number; };
 
+export function evaluateAchievements(
+  userId: string,
+  teams: Team[],
+  hunts: Hunt[],
+  existing: UserAchievement[]
+): string[] {
+  const existingIds = new Set(existing.map(a => a.achievementId));
+  const earned: string[] = [];
+
+  const myCompletedTeams = teams.filter(t =>
+    t.status === "complete" &&
+    t.members.some(m => m.userId === userId)
+  );
+
+  const getHunt = (huntId: string) => hunts.find(h => h.id === huntId);
+
+  const totalCompleted = myCompletedTeams.length;
+  const hasFailed5 = myCompletedTeams.some(t => t.failedAttempts >= 5);
+  const hasPerfect = myCompletedTeams.some(t => t.failedAttempts === 0);
+  const hasSub20 = myCompletedTeams.some(t => (t.totalTime || 999999) < 20 * 60);
+  const hasSub15 = myCompletedTeams.some(t => (t.totalTime || 999999) < 15 * 60);
+  const hasHard = myCompletedTeams.some(t => getHunt(t.huntId)?.difficulty === "hard");
+  const hasTeam3 = myCompletedTeams.some(t => t.members.length >= 3);
+  const riddleCount = myCompletedTeams.filter(t => getHunt(t.huntId)?.huntType === "riddle").length;
+  const photoCount = myCompletedTeams.filter(t => getHunt(t.huntId)?.huntType === "photography").length;
+  const completedTypes = new Set(myCompletedTeams.map(t => getHunt(t.huntId)?.huntType).filter(Boolean));
+
+  if (!existingIds.has("first_steps") && totalCompleted >= 1) earned.push("first_steps");
+  if (!existingIds.has("team_spirit") && hasTeam3) earned.push("team_spirit");
+  if (!existingIds.has("comeback_kid") && hasFailed5) earned.push("comeback_kid");
+  if (!existingIds.has("hard_boiled") && hasHard) earned.push("hard_boiled");
+  if (!existingIds.has("perfectionist") && hasPerfect) earned.push("perfectionist");
+  if (!existingIds.has("speed_demon") && hasSub20) earned.push("speed_demon");
+  if (!existingIds.has("riddle_master") && riddleCount >= 3) earned.push("riddle_master");
+  if (!existingIds.has("lens_hero") && photoCount >= 3) earned.push("lens_hero");
+  if (!existingIds.has("lightning_fast") && hasSub15) earned.push("lightning_fast");
+  if (!existingIds.has("type_collector") && completedTypes.size >= 4) earned.push("type_collector");
+  if (!existingIds.has("hunt_legend") && totalCompleted >= 5) earned.push("hunt_legend");
+
+  return earned;
+}
+
 interface AppContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
@@ -32,6 +109,9 @@ interface AppContextType {
   teams: Team[];
   setTeams: React.Dispatch<React.SetStateAction<Team[]>>;
   users: User[];
+  userAchievements: Record<string, UserAchievement[]>;
+  setUserAchievements: React.Dispatch<React.SetStateAction<Record<string, UserAchievement[]>>>;
+  awardAchievements: (userId: string, ids: string[], huntId?: string, teamName?: string) => UserAchievement[];
 }
 
 const mockUsers: User[] = [
@@ -142,15 +222,50 @@ const mockTeams: Team[] = [
   { id: "t13", huntId: "h4", name: "Mural Hunters", inviteCode: "MH5555", status: "complete", currentClueIndex: 4, failedAttempts: 4, startTime: new Date(Date.now() - 90*60000).toISOString(), completedAt: new Date(Date.now() - 28*60000).toISOString(), totalTime: 62*60, members: [{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:true}] }
 ];
 
+const mockUserAchievements: Record<string, UserAchievement[]> = {
+  u2: [
+    { achievementId: "first_steps",   userId: "u2", earnedAt: new Date(Date.now() - 2*24*60*60*1000).toISOString(), huntId: "h3", teamName: "The Squad" },
+    { achievementId: "team_spirit",   userId: "u2", earnedAt: new Date(Date.now() - 2*24*60*60*1000).toISOString(), huntId: "h3", teamName: "The Squad" },
+    { achievementId: "perfectionist", userId: "u2", earnedAt: new Date(Date.now() - 2*24*60*60*1000).toISOString(), huntId: "h3", teamName: "The Squad" },
+    { achievementId: "speed_demon",   userId: "u2", earnedAt: new Date(Date.now() - 2*24*60*60*1000).toISOString(), huntId: "h3", teamName: "The Squad" },
+  ],
+  u3: [
+    { achievementId: "first_steps",   userId: "u3", earnedAt: new Date(Date.now() - 5*24*60*60*1000).toISOString(), huntId: "h4", teamName: "Art Explorers" },
+    { achievementId: "team_spirit",   userId: "u3", earnedAt: new Date(Date.now() - 5*24*60*60*1000).toISOString(), huntId: "h4", teamName: "Art Explorers" },
+    { achievementId: "comeback_kid",  userId: "u3", earnedAt: new Date(Date.now() - 3*24*60*60*1000).toISOString(), huntId: "h1", teamName: "Ink & Quill" },
+    { achievementId: "perfectionist", userId: "u3", earnedAt: new Date(Date.now() - 1*24*60*60*1000).toISOString(), huntId: "h3", teamName: "Campus Crew" },
+    { achievementId: "speed_demon",   userId: "u3", earnedAt: new Date(Date.now() - 1*24*60*60*1000).toISOString(), huntId: "h3", teamName: "Campus Crew" },
+  ],
+};
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [hunts, setHunts] = useState<Hunt[]>(mockHunts);
   const [teams, setTeams] = useState<Team[]>(mockTeams);
+  const [userAchievements, setUserAchievements] = useState<Record<string, UserAchievement[]>>(mockUserAchievements);
+
+  const awardAchievements = (userId: string, ids: string[], huntId?: string, teamName?: string): UserAchievement[] => {
+    const newOnes: UserAchievement[] = ids.map(id => ({
+      achievementId: id,
+      userId,
+      earnedAt: new Date().toISOString(),
+      huntId,
+      teamName,
+    }));
+    setUserAchievements(prev => ({
+      ...prev,
+      [userId]: [...(prev[userId] || []), ...newOnes],
+    }));
+    return newOnes;
+  };
 
   return (
-    <AppContext.Provider value={{ currentUser, setCurrentUser, hunts, setHunts, teams, setTeams, users: mockUsers }}>
+    <AppContext.Provider value={{ 
+      currentUser, setCurrentUser, hunts, setHunts, teams, setTeams, users: mockUsers,
+      userAchievements, setUserAchievements, awardAchievements 
+    }}>
       {children}
     </AppContext.Provider>
   );

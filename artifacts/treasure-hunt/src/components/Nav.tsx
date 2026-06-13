@@ -1,11 +1,11 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Compass, Menu, X } from "lucide-react";
+import { Compass, Menu, Trophy, X } from "lucide-react";
 import { useAppContext } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 
 export function Nav() {
-  const { currentUser, setCurrentUser } = useAppContext();
+  const { currentUser, setCurrentUser, userAchievements } = useAppContext();
   const [location] = useLocation();
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -38,6 +38,12 @@ export function Nav() {
         {(currentUser.role === "player" || currentUser.role === "both") && (
           <Link href="/dashboard/player" className="text-sm font-medium hover:text-primary transition-colors">My Teams</Link>
         )}
+        <Link href="/achievements" className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors">
+          <Trophy size={15} className="text-accent" />
+          <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full font-bold">
+            {(userAchievements[currentUser.id] || []).length}
+          </span>
+        </Link>
         <Button variant="ghost" size="sm" onClick={handleLogout} className="text-sm font-medium text-muted-foreground hover:text-foreground">Logout</Button>
       </>
     );

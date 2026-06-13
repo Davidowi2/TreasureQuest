@@ -3,10 +3,11 @@ import { Play, Trophy, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useAppContext } from "@/context/AppContext";
+import { useAppContext, ALL_ACHIEVEMENTS } from "@/context/AppContext";
+import { AchievementBadge } from "@/components/AchievementBadge";
 
 export default function PlayerDashboard() {
-  const { teams, hunts, currentUser } = useAppContext();
+  const { teams, hunts, currentUser, userAchievements } = useAppContext();
   const [, setLocation] = useLocation();
 
   if (!currentUser || (currentUser.role !== "player" && currentUser.role !== "both")) {
@@ -18,6 +19,12 @@ export default function PlayerDashboard() {
   
   const activeTeams = myTeams.filter(t => t.status === "active" || t.status === "lobby");
   const completedTeams = myTeams.filter(t => t.status === "complete");
+
+  const myAchievements = (userAchievements[currentUser.id] || []);
+  const earnedDefs = myAchievements
+    .map(ua => ({ ua, def: ALL_ACHIEVEMENTS.find(a => a.id === ua.achievementId) }))
+    .filter(x => x.def !== undefined)
+    .sort((a, b) => new Date(b.ua.earnedAt).getTime() - new Date(a.ua.earnedAt).getTime());
 
   const TeamCard = ({ team }: { team: any }) => {
     const hunt = hunts.find(h => h.id === team.huntId);
@@ -97,6 +104,38 @@ export default function PlayerDashboard() {
           </Button>
         </Link>
       </div>
+
+      <section className="mb-10">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Trophy size={20} className="text-accent" />
+            My Trophies
+          </h2>
+          <Link href="/achievements" className="text-sm font-medium text-primary hover:underline">
+            View All
+          </Link>
+        </div>
+        <div className="bg-card border rounded-xl p-4 flex gap-4 overflow-x-auto no-scrollbar">
+          {earnedDefs.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic py-4">No trophies yet — complete a hunt to earn your first!</p>
+          ) : (
+            <>
+              {earnedDefs.slice(0, 8).map(({ def }) => (
+                <div key={def!.id} className="flex-shrink-0">
+                  <AchievementBadge achievement={def!} earned={true} size="sm" showLabel={true} />
+                </div>
+              ))}
+              {earnedDefs.length > 8 && (
+                <div className="flex flex-col items-center justify-center min-w-[64px]">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold text-sm">
+                    +{earnedDefs.length - 8}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
 
       <div className="space-y-10">
         <section>
