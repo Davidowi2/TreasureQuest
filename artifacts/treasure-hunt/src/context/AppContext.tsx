@@ -41,12 +41,15 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
 ];
 
 export type User = { id: string; name: string; email: string; role: Role; avatar?: string; };
+export type GameMode = "team" | "solo";
+
 export type ClueType = "text" | "image" | "audio";
 export type Clue = { id: string; huntId: string; order: number; hint: string; hintUnlockText: string; clueType: ClueType; mediaUrl?: string; audioUrl?: string; referenceImageUrl?: string; };
 export type Hunt = { 
   id: string; creatorId: string; creatorName: string; title: string; description: string; 
   difficulty: Difficulty; locationTag: string; status: HuntStatus; clues: Clue[]; 
   isShuffled: boolean; createdAt: string; 
+  gameMode: GameMode;
   huntType: "photography" | "riddle" | "trivia" | "exploration";
   minTeamSize: number;
   maxTeamSize: number;
@@ -58,7 +61,17 @@ export type Hunt = {
   ratingCount: number;
 };
 export type TeamMember = { userId: string; name: string; isActive: boolean; isLeader: boolean; };
-export type Team = { id: string; huntId: string; name: string; inviteCode: string; members: TeamMember[]; status: TeamStatus; currentClueIndex: number; startTime?: string; endTime?: string; failedAttempts: number; completedAt?: string; totalTime?: number; };
+
+export type ChatMessage = {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: string; // ISO
+  isSystem?: boolean; // for join/leave/start notices styled differently
+};
+
+export type Team = { id: string; huntId: string; name: string; inviteCode: string; members: TeamMember[]; status: TeamStatus; currentClueIndex: number; startTime?: string; endTime?: string; failedAttempts: number; completedAt?: string; totalTime?: number; messages: ChatMessage[]; };
 
 export function evaluateAchievements(
   userId: string,
@@ -113,6 +126,7 @@ interface AppContextType {
   userAchievements: Record<string, UserAchievement[]>;
   setUserAchievements: React.Dispatch<React.SetStateAction<Record<string, UserAchievement[]>>>;
   awardAchievements: (userId: string, ids: string[], huntId?: string, teamName?: string) => UserAchievement[];
+  sendMessage: (teamId: string, text: string) => void;
 }
 
 const mockUsers: User[] = [
@@ -125,7 +139,7 @@ const mockUsers: User[] = [
 
 const mockHunts: Hunt[] = [
   {
-    id: "h1", creatorId: "u1", creatorName: "Alice Chen", title: "The Lost Library", description: "Discover the hidden archives of the old city library.", difficulty: "hard", locationTag: "Downtown", status: "published", isShuffled: false, createdAt: new Date().toISOString(),
+    id: "h1", creatorId: "u1", creatorName: "Alice Chen", title: "The Lost Library", description: "Discover the hidden archives of the old city library.", difficulty: "hard", locationTag: "Downtown", status: "published", isShuffled: false, createdAt: new Date().toISOString(), gameMode: "team",
     huntType: "riddle", minTeamSize: 2, maxTeamSize: 6, timeLimit: 90, estimatedDuration: "60-90 min", totalPlayers: 312, completionRate: 64, rating: 4.8, ratingCount: 89,
     clues: [
       { id: "c1", huntId: "h1", order: 1, hint: "Where words go to sleep.", hintUnlockText: "Check the basement archives.", clueType: "text" },
@@ -136,7 +150,7 @@ const mockHunts: Hunt[] = [
     ]
   },
   {
-    id: "h2", creatorId: "u1", creatorName: "Alice Chen", title: "Harbor Secrets", description: "Follow the seagulls to maritime treasure.", difficulty: "medium", locationTag: "Waterfront", status: "published", isShuffled: true, createdAt: new Date().toISOString(),
+    id: "h2", creatorId: "u1", creatorName: "Alice Chen", title: "Harbor Secrets", description: "Follow the seagulls to maritime treasure.", difficulty: "medium", locationTag: "Waterfront", status: "published", isShuffled: true, createdAt: new Date().toISOString(), gameMode: "team",
     huntType: "photography", minTeamSize: 1, maxTeamSize: 8, estimatedDuration: "30-45 min", totalPlayers: 527, completionRate: 81, rating: 4.6, ratingCount: 134,
     clues: [
       { id: "c6", huntId: "h2", order: 1, hint: "Where the big ships dock.", hintUnlockText: "Pier 39.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80" },
@@ -146,7 +160,7 @@ const mockHunts: Hunt[] = [
     ]
   },
   {
-    id: "h3", creatorId: "u4", creatorName: "David Park", title: "Campus Mystery", description: "A quick hunt around the main university quad.", difficulty: "easy", locationTag: "University", status: "published", isShuffled: false, createdAt: new Date().toISOString(),
+    id: "h3", creatorId: "u4", creatorName: "David Park", title: "Campus Mystery", description: "A quick hunt around the main university quad.", difficulty: "easy", locationTag: "University", status: "published", isShuffled: false, createdAt: new Date().toISOString(), gameMode: "team",
     huntType: "exploration", minTeamSize: 1, maxTeamSize: 10, estimatedDuration: "20-30 min", totalPlayers: 891, completionRate: 92, rating: 4.3, ratingCount: 201,
     clues: [
       { id: "c10", huntId: "h3", order: 1, hint: "The founder's gaze.", hintUnlockText: "Statue in the center quad.", clueType: "text" },
@@ -156,7 +170,7 @@ const mockHunts: Hunt[] = [
     ]
   },
   {
-    id: "h4", creatorId: "u4", creatorName: "David Park", title: "Art District Riddles", description: "Explore the vibrant murals of SoMa.", difficulty: "medium", locationTag: "SoMa", status: "published", isShuffled: false, createdAt: new Date().toISOString(),
+    id: "h4", creatorId: "u4", creatorName: "David Park", title: "Art District Riddles", description: "Explore the vibrant murals of SoMa.", difficulty: "medium", locationTag: "SoMa", status: "published", isShuffled: false, createdAt: new Date().toISOString(), gameMode: "team",
     huntType: "trivia", minTeamSize: 2, maxTeamSize: 6, estimatedDuration: "45-60 min", totalPlayers: 445, completionRate: 73, rating: 4.7, ratingCount: 112,
     clues: [
       { id: "c14", huntId: "h4", order: 1, hint: "The blue tiger.", hintUnlockText: "Mural on 5th street.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1567359781514-3b964e2b04d6?w=800&q=80" },
@@ -167,7 +181,7 @@ const mockHunts: Hunt[] = [
     ]
   },
   {
-    id: "h5", creatorId: "u1", creatorName: "Alice Chen", title: "Secret Garden", description: "Hidden botanical wonders.", difficulty: "easy", locationTag: "Botanical Park", status: "draft", isShuffled: false, createdAt: new Date().toISOString(),
+    id: "h5", creatorId: "u1", creatorName: "Alice Chen", title: "Secret Garden", description: "Hidden botanical wonders.", difficulty: "easy", locationTag: "Botanical Park", status: "draft", isShuffled: false, createdAt: new Date().toISOString(), gameMode: "team",
     huntType: "photography", minTeamSize: 1, maxTeamSize: 6, estimatedDuration: "25-35 min", totalPlayers: 0, completionRate: 0, rating: 0, ratingCount: 0,
     clues: [
       { id: "c19", huntId: "h5", order: 1, hint: "The thorny path.", hintUnlockText: "The cactus garden.", clueType: "text" },
@@ -177,7 +191,7 @@ const mockHunts: Hunt[] = [
     ]
   },
   {
-    id: "h6", creatorId: "u4", creatorName: "David Park", title: "The Clock Tower", description: "Time is ticking.", difficulty: "hard", locationTag: "Old Town", status: "draft", isShuffled: false, createdAt: new Date().toISOString(),
+    id: "h6", creatorId: "u4", creatorName: "David Park", title: "The Clock Tower", description: "Time is ticking.", difficulty: "hard", locationTag: "Old Town", status: "draft", isShuffled: false, createdAt: new Date().toISOString(), gameMode: "team",
     huntType: "riddle", minTeamSize: 2, maxTeamSize: 4, timeLimit: 120, estimatedDuration: "90-120 min", totalPlayers: 0, completionRate: 0, rating: 0, ratingCount: 0,
     clues: [
       { id: "c23", huntId: "h6", order: 1, hint: "The first bell.", hintUnlockText: "The town square.", clueType: "text" },
@@ -185,12 +199,67 @@ const mockHunts: Hunt[] = [
       { id: "c25", huntId: "h6", order: 3, hint: "The gargoyle's view.", hintUnlockText: "The cathedral roof.", clueType: "text" },
       { id: "c26", huntId: "h6", order: 4, hint: "Midnight strikes.", hintUnlockText: "The base of the tower.", clueType: "text" }
     ]
+  },
+  {
+    id: "h7",
+    creatorId: "u1",
+    creatorName: "Alice Chen",
+    title: "The Midnight Cipher",
+    description: "A personal puzzle crafted for one adventurer. Solve three encoded messages and find the hidden vault.",
+    difficulty: "hard",
+    locationTag: "Old Quarter",
+    status: "published",
+    isShuffled: false,
+    createdAt: new Date().toISOString(),
+    gameMode: "solo",
+    huntType: "riddle",
+    minTeamSize: 1,
+    maxTeamSize: 1,
+    timeLimit: 45,
+    estimatedDuration: "30-45 min",
+    totalPlayers: 23,
+    completionRate: 78,
+    rating: 4.9,
+    ratingCount: 18,
+    clues: [
+      { id: "c27", huntId: "h7", order: 1, hint: "Three letters stand where two rivers meet.", hintUnlockText: "Find the bridge inscription at the confluence.", clueType: "text" },
+      { id: "c28", huntId: "h7", order: 2, hint: "The clock reads the same forwards and backwards.", hintUnlockText: "Look for the palindrome time on the east tower.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1501139083538-0139583c060f?w=800&q=80" },
+      { id: "c29", huntId: "h7", order: 3, hint: "Where silence speaks the loudest.", hintUnlockText: "The reading room in the old archive building.", clueType: "text" },
+      { id: "c30", huntId: "h7", order: 4, hint: "The final cipher is in plain sight.", hintUnlockText: "The mosaic floor under the entrance arch.", clueType: "text" },
+    ]
+  },
+  {
+    id: "h8",
+    creatorId: "u4",
+    creatorName: "David Park",
+    title: "Rooftop to Riverbank",
+    description: "An exclusive solo adventure from the highest point to the water's edge. Meant for one.",
+    difficulty: "medium",
+    locationTag: "City Centre",
+    status: "published",
+    isShuffled: false,
+    createdAt: new Date().toISOString(),
+    gameMode: "solo",
+    huntType: "exploration",
+    minTeamSize: 1,
+    maxTeamSize: 1,
+    estimatedDuration: "25-35 min",
+    totalPlayers: 11,
+    completionRate: 91,
+    rating: 4.7,
+    ratingCount: 9,
+    clues: [
+      { id: "c31", huntId: "h8", order: 1, hint: "Start where the city breathes.", hintUnlockText: "The rooftop garden on the municipal building.", clueType: "text" },
+      { id: "c32", huntId: "h8", order: 2, hint: "Follow the painted arrows down.", hintUnlockText: "The staircase murals on the south side.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80" },
+      { id: "c33", huntId: "h8", order: 3, hint: "Where the street performers gather at noon.", hintUnlockText: "The central plaza fountain.", clueType: "text" },
+      { id: "c34", huntId: "h8", order: 4, hint: "The river remembers everything.", hintUnlockText: "The plaque at the riverbank heritage site.", clueType: "audio", audioUrl: "/mock-audio/clue-h8-c34.mp3" },
+    ]
   }
 ];
 
 const mockTeams: Team[] = [
   {
-    id: "t1", huntId: "h1", name: "Codebreakers", inviteCode: "ABCDEF", status: "lobby", currentClueIndex: 0, failedAttempts: 0,
+    id: "t1", huntId: "h1", name: "Codebreakers", inviteCode: "ABCDEF", status: "lobby", currentClueIndex: 0, failedAttempts: 0, messages: [],
     members: [
       { userId: "u2", name: "Bob Martinez", isActive: true, isLeader: true },
       { userId: "u3", name: "Carol Smith", isActive: true, isLeader: false },
@@ -198,7 +267,7 @@ const mockTeams: Team[] = [
     ]
   },
   {
-    id: "t2", huntId: "h2", name: "Night Owls", inviteCode: "XYZ123", status: "active", currentClueIndex: 1, failedAttempts: 1, startTime: new Date().toISOString(),
+    id: "t2", huntId: "h2", name: "Night Owls", inviteCode: "XYZ123", status: "active", currentClueIndex: 1, failedAttempts: 1, startTime: new Date().toISOString(), messages: [],
     members: [
       { userId: "u3", name: "Carol Smith", isActive: true, isLeader: true },
       { userId: "u5", name: "Eva Johnson", isActive: true, isLeader: false }
@@ -206,21 +275,28 @@ const mockTeams: Team[] = [
   },
   {
     id: "t3", huntId: "h3", name: "The Squad", inviteCode: "QWERTY", status: "complete", currentClueIndex: 3, failedAttempts: 0, startTime: new Date(Date.now() - 18 * 60000).toISOString(), completedAt: new Date().toISOString(), totalTime: 18 * 60,
+    messages: [
+      { id:"m1", userId:"u2", userName:"Bob Martinez", text:"ok let's go", timestamp: new Date(Date.now()-20*60000).toISOString() },
+      { id:"m2", userId:"u5", userName:"Eva Johnson", text:"I see the statue! Running over now", timestamp: new Date(Date.now()-18*60000).toISOString() },
+      { id:"m3", userId:"u2", userName:"Bob Martinez", text:"Got it! That was quick", timestamp: new Date(Date.now()-16*60000).toISOString() },
+      { id:"m4", userId:"u5", userName:"Eva Johnson", text:"Next clue is by the coffee shop I think", timestamp: new Date(Date.now()-14*60000).toISOString() },
+      { id:"m5", userId:"u2", userName:"Bob Martinez", text:"We did it!!", timestamp: new Date(Date.now()-12*60000).toISOString() },
+    ],
     members: [
       { userId: "u2", name: "Bob Martinez", isActive: false, isLeader: true },
       { userId: "u5", name: "Eva Johnson", isActive: false, isLeader: false }
     ]
   },
-  { id: "t4", huntId: "h1", name: "Puzzle Masters", inviteCode: "PM1234", status: "complete", currentClueIndex: 4, failedAttempts: 2, startTime: new Date(Date.now() - 75*60000).toISOString(), completedAt: new Date(Date.now() - 15*60000).toISOString(), totalTime: 60*60, members: [{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:true},{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:false}] },
-  { id: "t5", huntId: "h1", name: "Ink & Quill", inviteCode: "IQ5678", status: "complete", currentClueIndex: 4, failedAttempts: 5, startTime: new Date(Date.now() - 120*60000).toISOString(), completedAt: new Date(Date.now() - 40*60000).toISOString(), totalTime: 80*60, members: [{userId:"u3",name:"Carol Smith",isActive:false,isLeader:true}] },
-  { id: "t6", huntId: "h2", name: "Shutter Crew", inviteCode: "SC9012", status: "complete", currentClueIndex: 3, failedAttempts: 1, startTime: new Date(Date.now() - 50*60000).toISOString(), completedAt: new Date(Date.now() - 20*60000).toISOString(), totalTime: 30*60, members: [{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:true},{userId:"u3",name:"Carol Smith",isActive:false,isLeader:false}] },
-  { id: "t7", huntId: "h2", name: "Lens Legends", inviteCode: "LL3456", status: "complete", currentClueIndex: 3, failedAttempts: 0, startTime: new Date(Date.now() - 45*60000).toISOString(), completedAt: new Date(Date.now() - 10*60000).toISOString(), totalTime: 35*60, members: [{userId:"u4",name:"David Park",isActive:false,isLeader:true}] },
-  { id: "t8", huntId: "h2", name: "Sea Dogs", inviteCode: "SD7890", status: "complete", currentClueIndex: 3, failedAttempts: 3, startTime: new Date(Date.now() - 60*60000).toISOString(), completedAt: new Date(Date.now() - 12*60000).toISOString(), totalTime: 48*60, members: [{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:true}] },
-  { id: "t9", huntId: "h3", name: "Campus Crew", inviteCode: "CC1111", status: "complete", currentClueIndex: 3, failedAttempts: 0, startTime: new Date(Date.now() - 30*60000).toISOString(), completedAt: new Date(Date.now() - 12*60000).toISOString(), totalTime: 18*60, members: [{userId:"u3",name:"Carol Smith",isActive:false,isLeader:true}] },
-  { id: "t10", huntId: "h3", name: "Study Breakers", inviteCode: "SB2222", status: "complete", currentClueIndex: 3, failedAttempts: 1, startTime: new Date(Date.now() - 40*60000).toISOString(), completedAt: new Date(Date.now() - 18*60000).toISOString(), totalTime: 22*60, members: [{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:true},{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:false}] },
-  { id: "t11", huntId: "h3", name: "Quad Runners", inviteCode: "QR3333", status: "complete", currentClueIndex: 3, failedAttempts: 2, startTime: new Date(Date.now() - 55*60000).toISOString(), completedAt: new Date(Date.now() - 25*60000).toISOString(), totalTime: 30*60, members: [{userId:"u4",name:"David Park",isActive:false,isLeader:true}] },
-  { id: "t12", huntId: "h4", name: "Art Explorers", inviteCode: "AE4444", status: "complete", currentClueIndex: 4, failedAttempts: 1, startTime: new Date(Date.now() - 65*60000).toISOString(), completedAt: new Date(Date.now() - 15*60000).toISOString(), totalTime: 50*60, members: [{userId:"u3",name:"Carol Smith",isActive:false,isLeader:true},{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:false}] },
-  { id: "t13", huntId: "h4", name: "Mural Hunters", inviteCode: "MH5555", status: "complete", currentClueIndex: 4, failedAttempts: 4, startTime: new Date(Date.now() - 90*60000).toISOString(), completedAt: new Date(Date.now() - 28*60000).toISOString(), totalTime: 62*60, members: [{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:true}] }
+  { id: "t4", huntId: "h1", name: "Puzzle Masters", inviteCode: "PM1234", status: "complete", currentClueIndex: 4, failedAttempts: 2, startTime: new Date(Date.now() - 75*60000).toISOString(), completedAt: new Date(Date.now() - 15*60000).toISOString(), totalTime: 60*60, messages: [], members: [{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:true},{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:false}] },
+  { id: "t5", huntId: "h1", name: "Ink & Quill", inviteCode: "IQ5678", status: "complete", currentClueIndex: 4, failedAttempts: 5, startTime: new Date(Date.now() - 120*60000).toISOString(), completedAt: new Date(Date.now() - 40*60000).toISOString(), totalTime: 80*60, messages: [], members: [{userId:"u3",name:"Carol Smith",isActive:false,isLeader:true}] },
+  { id: "t6", huntId: "h2", name: "Shutter Crew", inviteCode: "SC9012", status: "complete", currentClueIndex: 3, failedAttempts: 1, startTime: new Date(Date.now() - 50*60000).toISOString(), completedAt: new Date(Date.now() - 20*60000).toISOString(), totalTime: 30*60, messages: [], members: [{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:true},{userId:"u3",name:"Carol Smith",isActive:false,isLeader:false}] },
+  { id: "t7", huntId: "h2", name: "Lens Legends", inviteCode: "LL3456", status: "complete", currentClueIndex: 3, failedAttempts: 0, startTime: new Date(Date.now() - 45*60000).toISOString(), completedAt: new Date(Date.now() - 10*60000).toISOString(), totalTime: 35*60, messages: [], members: [{userId:"u4",name:"David Park",isActive:false,isLeader:true}] },
+  { id: "t8", huntId: "h2", name: "Sea Dogs", inviteCode: "SD7890", status: "complete", currentClueIndex: 3, failedAttempts: 3, startTime: new Date(Date.now() - 60*60000).toISOString(), completedAt: new Date(Date.now() - 12*60000).toISOString(), totalTime: 48*60, messages: [], members: [{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:true}] },
+  { id: "t9", huntId: "h3", name: "Campus Crew", inviteCode: "CC1111", status: "complete", currentClueIndex: 3, failedAttempts: 0, startTime: new Date(Date.now() - 30*60000).toISOString(), completedAt: new Date(Date.now() - 12*60000).toISOString(), totalTime: 18*60, messages: [], members: [{userId:"u3",name:"Carol Smith",isActive:false,isLeader:true}] },
+  { id: "t10", huntId: "h3", name: "Study Breakers", inviteCode: "SB2222", status: "complete", currentClueIndex: 3, failedAttempts: 1, startTime: new Date(Date.now() - 40*60000).toISOString(), completedAt: new Date(Date.now() - 18*60000).toISOString(), totalTime: 22*60, messages: [], members: [{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:true},{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:false}] },
+  { id: "t11", huntId: "h3", name: "Quad Runners", inviteCode: "QR3333", status: "complete", currentClueIndex: 3, failedAttempts: 2, startTime: new Date(Date.now() - 55*60000).toISOString(), completedAt: new Date(Date.now() - 25*60000).toISOString(), totalTime: 30*60, messages: [], members: [{userId:"u4",name:"David Park",isActive:false,isLeader:true}] },
+  { id: "t12", huntId: "h4", name: "Art Explorers", inviteCode: "AE4444", status: "complete", currentClueIndex: 4, failedAttempts: 1, startTime: new Date(Date.now() - 65*60000).toISOString(), completedAt: new Date(Date.now() - 15*60000).toISOString(), totalTime: 50*60, messages: [], members: [{userId:"u3",name:"Carol Smith",isActive:false,isLeader:true},{userId:"u2",name:"Bob Martinez",isActive:false,isLeader:false}] },
+  { id: "t13", huntId: "h4", name: "Mural Hunters", inviteCode: "MH5555", status: "complete", currentClueIndex: 4, failedAttempts: 4, startTime: new Date(Date.now() - 90*60000).toISOString(), completedAt: new Date(Date.now() - 28*60000).toISOString(), totalTime: 62*60, messages: [], members: [{userId:"u5",name:"Eva Johnson",isActive:false,isLeader:true}] }
 ];
 
 const mockUserAchievements: Record<string, UserAchievement[]> = {
@@ -262,10 +338,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return newOnes;
   };
 
+  const sendMessage = (teamId: string, text: string) => {
+    if (!currentUser) return;
+    const msg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      text,
+      timestamp: new Date().toISOString(),
+    };
+    setTeams(prev =>
+      prev.map(t => t.id === teamId ? { ...t, messages: [...t.messages, msg] } : t)
+    );
+  };
+
   return (
     <AppContext.Provider value={{ 
       currentUser, setCurrentUser, hunts, setHunts, teams, setTeams, users: mockUsers,
-      userAchievements, setUserAchievements, awardAchievements 
+      userAchievements, setUserAchievements, awardAchievements, sendMessage
     }}>
       {children}
     </AppContext.Provider>

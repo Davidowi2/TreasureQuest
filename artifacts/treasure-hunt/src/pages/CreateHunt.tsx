@@ -20,6 +20,7 @@ export default function CreateHunt() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [locationTag, setLocationTag] = useState("");
   const [isShuffled, setIsShuffled] = useState(false);
+  const [gameMode, setGameMode] = useState<"team" | "solo">("team");
   const [clues, setClues] = useState<Omit<Clue, "id" | "huntId">[]>([]);
   const [error, setError] = useState("");
 
@@ -91,14 +92,15 @@ export default function CreateHunt() {
       status,
       isShuffled,
       createdAt: new Date().toISOString(),
+      gameMode: gameMode,
       clues: clues.map((c, i) => ({
         ...c,
         id: `c${Date.now()}-${i}`,
         huntId: `h${Date.now()}` // technically referencing self but mock data is loose
       })) as Clue[],
       huntType: "exploration",
-      minTeamSize: 1,
-      maxTeamSize: 6,
+      minTeamSize: gameMode === "solo" ? 1 : 2,
+      maxTeamSize: gameMode === "solo" ? 1 : 8,
       estimatedDuration: "30-45 min",
       totalPlayers: 0,
       completionRate: 0,
@@ -166,6 +168,31 @@ export default function CreateHunt() {
                 <div className="space-y-2">
                   <Label htmlFor="location">General Location</Label>
                   <Input id="location" placeholder="e.g. Central Park" value={locationTag} onChange={e => setLocationTag(e.target.value)} className="h-12" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 border rounded-xl bg-muted/30">
+                <div className="space-y-0.5">
+                  <Label className="text-base font-semibold">Game Mode</Label>
+                  <p className="text-sm text-muted-foreground">Solo: for one invited player, starts immediately.</p>
+                </div>
+                <div className="flex gap-2">
+                  {(["team", "solo"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setGameMode(mode)}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors capitalize ${
+                        gameMode === mode
+                          ? mode === "solo"
+                            ? "bg-rose-600 text-white border-rose-600"
+                            : "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
                 </div>
               </div>
 

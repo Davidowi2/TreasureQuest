@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Plus, Settings, Play, Archive, MoreVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useAppContext } from "@/context/AppContext";
+import { SoloModeBadge } from "@/components/SoloModeBadge";
 
 export default function CreatorDashboard() {
   const { hunts, setHunts, currentUser } = useAppContext();
   const [, setLocation] = useLocation();
+  const [copiedHuntId, setCopiedHuntId] = useState<string | null>(null);
 
   if (!currentUser || (currentUser.role !== "creator" && currentUser.role !== "both")) {
     setLocation("/");
@@ -27,6 +30,7 @@ export default function CreatorDashboard() {
       <div className="space-y-1 flex-grow">
         <div className="flex items-center gap-3">
           <h3 className="font-bold text-lg">{hunt.title}</h3>
+          {hunt.gameMode === "solo" && <SoloModeBadge />}
           <Badge variant={hunt.status === 'published' ? 'default' : hunt.status === 'draft' ? 'secondary' : 'outline'}>
             {hunt.status.charAt(0).toUpperCase() + hunt.status.slice(1)}
           </Badge>
@@ -40,6 +44,21 @@ export default function CreatorDashboard() {
       </div>
       
       <div className="flex items-center gap-2">
+        {hunt.gameMode === "solo" && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-rose-300 text-rose-600 hover:bg-rose-50"
+            onClick={() => {
+              const code = hunt.id.toUpperCase().slice(-2);
+              navigator.clipboard.writeText(`SOLO-${code}`);
+              setCopiedHuntId(hunt.id);
+              setTimeout(() => setCopiedHuntId(null), 2000);
+            }}
+          >
+            {copiedHuntId === hunt.id ? "Copied!" : "Copy Invite"}
+          </Button>
+        )}
         {hunt.status === 'draft' && (
           <Button 
             size="sm" 

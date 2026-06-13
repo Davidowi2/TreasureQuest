@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, AlertCircle, CheckCircle2, Unlock, ChevronRight, BookOpen, Image as ImageIcon, ZoomIn, Music, Play, Pause } from "lucide-react";
+import { Camera, MapPin, AlertCircle, CheckCircle2, Unlock, ChevronRight, BookOpen, Image as ImageIcon, ZoomIn, Music, Play, Pause, MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppContext } from "@/context/AppContext";
 import { ConfettiEffect } from "@/components/ConfettiEffect";
+import { ChatPanel } from "@/components/ChatPanel";
 
 function AudioPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -87,10 +88,43 @@ export default function ActiveGame() {
   const [failureMsg, setFailureMsg] = useState("");
   const [showUnlock, setShowUnlock] = useState(false);
   const [imageZoomed, setImageZoomed] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [lastSeenMsgCount, setLastSeenMsgCount] = useState(0);
 
   const teamId = params?.teamId;
   const team = teams.find(t => t.id === teamId);
   const hunt = team ? hunts.find(h => h.id === team.huntId) : null;
+  const { currentUser } = useAppContext();
+
+  useEffect(() => {
+    if (chatOpen && team) {
+      setLastSeenMsgCount(team.messages.length);
+    }
+  }, [chatOpen, team?.messages.length]);
+
+  useEffect(() => {
+    if (!team || team.members.length < 2) return;
+    const timer = setTimeout(() => {
+      const teammate = team.members.find(m => m.userId !== currentUser?.id);
+      if (!teammate) return;
+      setTeams(prev => prev.map(t => t.id === teamId ? {
+        ...t,
+        messages: [...t.messages, {
+          id: `auto-${Date.now()}`,
+          userId: teammate.userId,
+          userName: teammate.name,
+          text: "Any ideas on this clue?",
+          timestamp: new Date().toISOString(),
+        }]
+      } : t));
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [teamId]);
+
+  const unreadCount = team
+    ? team.messages.filter(m => !m.isSystem && m.userId !== currentUser?.id).length - lastSeenMsgCount
+    : 0;
+  const safeUnread = Math.max(0, unreadCount);
 
   if (!team || !hunt || team.status !== "active") {
     // If completed, redirect
@@ -315,6 +349,44 @@ export default function ActiveGame() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      <AnimatePresence>
+        {chatOpen && (
+          <motion.div
+            key="chat-panel"
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            className="fixed bottom-24 right-6 z-50 w-80 h-96 bg-background border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-primary text-primary-foreground flex-shrink-0">
+              <span className="font-semibold text-sm flex items-center gap-2">
+                <MessageCircle size={16} /> Team Chat
+              </span>
+              <button onClick={() => setChatOpen(false)} className="hover:opacity-70">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-grow min-h-0 overflow-hidden">
+              <ChatPanel teamId={teamId!} compact={true} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="fixed bottom-6 right-6 z-50 relative">
+        <button
+          onClick={() => setChatOpen(prev => !prev)}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-xl flex items-center justify-center hover:scale-105 transition-transform"
+        >
+          <MessageCircle size={24} />
+          {!chatOpen && safeUnread > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-bold">
+              {safeUnread > 9 ? "9+" : safeUnread}
+            </span>
+          )}
+        </button>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ export default function HuntDiscovery() {
   const [searchTerm, setSearchTerm] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | "all">("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [gameModeFilter, setGameModeFilter] = useState<"all" | "team" | "solo">("all");
 
   const publishedHunts = hunts.filter(h => h.status === "published");
 
@@ -21,9 +22,10 @@ export default function HuntDiscovery() {
                             hunt.locationTag.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDifficulty = difficultyFilter === "all" || hunt.difficulty === difficultyFilter;
       const matchesType = typeFilter === "all" || hunt.huntType === typeFilter;
-      return matchesSearch && matchesDifficulty && matchesType;
+      const matchesGameMode = gameModeFilter === "all" || hunt.gameMode === gameModeFilter;
+      return matchesSearch && matchesDifficulty && matchesType && matchesGameMode;
     });
-  }, [publishedHunts, searchTerm, difficultyFilter, typeFilter]);
+  }, [publishedHunts, searchTerm, difficultyFilter, typeFilter, gameModeFilter]);
 
   return (
     <div className="container px-4 py-8 mx-auto max-w-7xl min-h-[calc(100vh-4rem)]">
@@ -44,7 +46,19 @@ export default function HuntDiscovery() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="w-full md:w-48 flex-shrink-0">
+        <div className="w-full md:w-36 flex-shrink-0">
+          <Select value={gameModeFilter} onValueChange={(val) => setGameModeFilter(val as any)}>
+            <SelectTrigger className="h-12 bg-background">
+              <SelectValue placeholder="All Modes" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Modes</SelectItem>
+              <SelectItem value="team">Team</SelectItem>
+              <SelectItem value="solo">Solo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-full md:w-40 flex-shrink-0">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="h-12 bg-background">
               <SelectValue placeholder="All Types" />
@@ -58,7 +72,7 @@ export default function HuntDiscovery() {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-full md:w-48 flex-shrink-0">
+        <div className="w-full md:w-40 flex-shrink-0">
           <Select value={difficultyFilter} onValueChange={(val) => setDifficultyFilter(val as any)}>
             <SelectTrigger className="h-12 bg-background">
               <SelectValue placeholder="Any Difficulty" />

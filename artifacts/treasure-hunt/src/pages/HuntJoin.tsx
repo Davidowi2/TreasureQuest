@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, MapPin, Users, Key, Play } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Key, Play, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAppContext, Team } from "@/context/AppContext";
 import { DifficultyBadge } from "@/components/DifficultyBadge";
+import { SoloModeBadge } from "@/components/SoloModeBadge";
 
 export default function HuntJoin() {
   const [, params] = useRoute("/hunts/:id/join");
@@ -94,6 +95,25 @@ export default function HuntJoin() {
     setLocation(`/team/${team.id}/lobby`);
   };
 
+  const handleSoloStart = () => {
+    if (!currentUser) { setLocation("/login"); return; }
+    const soloCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const soloTeam: Team = {
+      id: `t${Date.now()}`,
+      huntId: hunt.id,
+      name: `${currentUser.name}'s Run`,
+      inviteCode: soloCode,
+      status: "active",
+      currentClueIndex: 0,
+      failedAttempts: 0,
+      startTime: new Date().toISOString(),
+      messages: [],
+      members: [{ userId: currentUser.id, name: currentUser.name, isActive: true, isLeader: true }],
+    };
+    setTeams([...teams, soloTeam]);
+    setLocation(`/game/${soloTeam.id}`);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl min-h-[calc(100vh-4rem)]">
       <Button variant="ghost" onClick={() => setLocation("/hunts")} className="mb-6 -ml-4 text-muted-foreground">
@@ -105,6 +125,7 @@ export default function HuntJoin() {
           <div>
             <div className="flex gap-2 mb-3">
               <DifficultyBadge difficulty={hunt.difficulty} />
+              {hunt.gameMode === "solo" && <SoloModeBadge />}
               <div className="flex items-center text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
                 <MapPin size={12} className="mr-1" />
                 {hunt.locationTag}
@@ -132,7 +153,7 @@ export default function HuntJoin() {
             <CardHeader className="bg-muted/30 border-b pb-6">
               <CardTitle className="text-2xl">Join the Adventure</CardTitle>
               <CardDescription>
-                Create a new team to lead, or join an existing one.
+                {hunt.gameMode === "solo" ? "Start your personal adventure." : "Create a new team to lead, or join an existing one."}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6">
@@ -142,63 +163,96 @@ export default function HuntJoin() {
                 </div>
               )}
 
-              <div className="space-y-8">
-                {/* Create Team Form */}
-                <form onSubmit={handleCreateTeam} className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2 text-primary font-semibold">
-                    <Users size={20} />
-                    <h3>Create a New Team</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="teamName">Team Name</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        id="teamName" 
-                        placeholder="e.g. The Night Owls" 
-                        value={teamName}
-                        onChange={(e) => setTeamName(e.target.value)}
-                        className="flex-grow"
-                      />
-                      <Button type="submit" className="whitespace-nowrap">
-                        <Play size={16} className="mr-2" /> Create
-                      </Button>
+              {hunt.gameMode === "solo" ? (
+                <div className="space-y-6">
+                  <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl">
+                    <User size={20} className="text-rose-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-rose-800">Solo Adventure</p>
+                      <p className="text-sm text-rose-700">This hunt was designed for one player. No team required — just you and the clues.</p>
                     </div>
                   </div>
-                </form>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <Separator className="w-full" />
+                  <Button size="lg" className="w-full h-14 text-lg" onClick={handleSoloStart}>
+                    <Play size={20} className="mr-2" /> Start Solo Hunt
+                  </Button>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><Separator className="w-full" /></div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground font-semibold">Or received an invite?</span>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground font-semibold">Or</span>
-                  </div>
-                </div>
-
-                {/* Join Team Form */}
-                <form onSubmit={handleJoinTeam} className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2 text-secondary-foreground font-semibold">
-                    <Key size={20} className="text-secondary" />
-                    <h3>Join Existing Team</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="inviteCode">Invite Code</Label>
+                  <form onSubmit={handleJoinTeam} className="space-y-3">
                     <div className="flex gap-2">
-                      <Input 
-                        id="inviteCode" 
-                        placeholder="6-character code" 
+                      <Input
+                        placeholder="Enter invite code"
                         value={inviteCode}
                         onChange={(e) => setInviteCode(e.target.value)}
                         className="flex-grow font-mono uppercase tracking-wider"
                         maxLength={6}
                       />
-                      <Button type="submit" variant="secondary" className="whitespace-nowrap">
-                        Join Team
-                      </Button>
+                      <Button type="submit" variant="secondary">Join</Button>
+                    </div>
+                  </form>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Create Team Form */}
+                  <form onSubmit={handleCreateTeam} className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 text-primary font-semibold">
+                      <Users size={20} />
+                      <h3>Create a New Team</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="teamName">Team Name</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="teamName" 
+                          placeholder="e.g. The Night Owls" 
+                          value={teamName}
+                          onChange={(e) => setTeamName(e.target.value)}
+                          className="flex-grow"
+                        />
+                        <Button type="submit" className="whitespace-nowrap">
+                          <Play size={16} className="mr-2" /> Create
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <Separator className="w-full" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground font-semibold">Or</span>
                     </div>
                   </div>
-                </form>
-              </div>
+
+                  {/* Join Team Form */}
+                  <form onSubmit={handleJoinTeam} className="space-y-4">
+                    <div className="flex items-center gap-2 mb-2 text-secondary-foreground font-semibold">
+                      <Key size={20} className="text-secondary" />
+                      <h3>Join Existing Team</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="inviteCode">Invite Code</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="inviteCode" 
+                          placeholder="6-character code" 
+                          value={inviteCode}
+                          onChange={(e) => setInviteCode(e.target.value)}
+                          className="flex-grow font-mono uppercase tracking-wider"
+                          maxLength={6}
+                        />
+                        <Button type="submit" variant="secondary" className="whitespace-nowrap">
+                          Join Team
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

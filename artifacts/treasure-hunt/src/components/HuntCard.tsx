@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { DifficultyBadge } from "./DifficultyBadge";
 import { HuntTypeBadge } from "./HuntTypeBadge";
+import { SoloModeBadge } from "@/components/SoloModeBadge";
 
 interface HuntCardProps {
   hunt: Hunt;
@@ -17,6 +18,7 @@ export function HuntCard({ hunt }: HuntCardProps) {
         <div className="flex justify-between items-start mb-2">
           <div className="flex flex-wrap gap-2">
             <HuntTypeBadge type={hunt.huntType} />
+            {hunt.gameMode === "solo" && <SoloModeBadge />}
             <DifficultyBadge difficulty={hunt.difficulty} />
           </div>
           <div className="flex items-center text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full whitespace-nowrap ml-2">
