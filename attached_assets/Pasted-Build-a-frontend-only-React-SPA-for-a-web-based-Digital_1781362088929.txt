@@ -1,0 +1,56 @@
+Build a frontend-only React SPA for a web-based Digital Treasure Hunt platform. Use React Router for navigation, useState/useContext for state, and mock data (no backend calls, no API, no .env needed). All data is hardcoded or lives in React state.
+
+PAGES & FLOW
+/ — Landing Page
+
+Hero section with a strong headline, a short one-liner explaining the product, and two CTAs: "Create a Hunt" and "Join a Hunt". Below the hero: a "How it works" section with 3 steps for players and 3 steps for creators shown side by side. Below that: a featured hunts row pulling from mock data. Footer with links to Login and Signup.
+/signup and /login
+
+Signup has name, email, password, and a role toggle (Creator / Player / Both). Login has email and password. On submit, save a mock user object to context and redirect. No real auth — just simulate it.
+/hunts — Hunt Discovery
+
+Grid of published hunt cards from mock data. Each card shows title, difficulty badge, location tag, creator name, and a Join button. Filter bar at top: by difficulty (easy / medium / hard) and location tag. Search input filters by title. Clicking Join goes to /hunts/:id/join.
+/hunts/:id/join — Join Page
+
+Shows hunt title, description, difficulty, creator name. Two options: "Create a Team" (input for team name) or "Enter Invite Code" (text input). On submit, mock-create a team and redirect to /team/:teamId/lobby.
+/dashboard/creator — Creator Dashboard
+
+Lists all hunts the mock creator owns with their lifecycle status (draft / published / archived). Each row has Edit, Publish, Archive buttons. Publish is disabled if clue count is 0. Archived hunts are greyed out. Button at top to create a new hunt.
+/hunts/new — Create Hunt
+
+Step 1: Hunt details — title, description, difficulty, location tag, is_shuffled toggle.
+
+Step 2: Clue builder — add clues one by one. Each clue has hint text, optional media upload (mocked), reference image upload (mocked), and an optional hint_unlock_text field. Clues are reorderable via drag or up/down arrows. Minimum 2 clues to proceed.
+
+Step 3: Review and publish or save as draft.
+/team/:teamId/lobby — Team Lobby
+
+Shows team name, hunt title, invite code (with copy button), and list of members with their active status (green/grey dot). Leader sees a "Start Game" button — disabled until at least 1 member is active. Members see "Waiting for leader to start..." Leader can remove members before start. Simulate real-time by polling mock state every 3 seconds.
+/game/:teamId — Active Gameplay
+
+Single active clue view. Shows clue number (e.g. "Clue 2 of 6"), hint text, optional hint media. Camera/upload button to submit a photo — mock the verification: 70% chance of success on first 2 attempts, 100% on third. Show a loading state ("Verifying...") for 2 seconds before result. On success: show a green checkmark, confetti, and a "Next Clue" button. On failure: show failure message and attempt count. After 3 failures, show "Unlock Hint" button that reveals hint_unlock_text. After 5 failures, show a 10-minute cooldown timer (mock it as a 10-second timer for demo). Team member list shown as a small sidebar showing who is active.
+/game/:teamId/complete — Completion Screen
+
+Shows "Hunt Complete!" with total time taken (mocked), clues solved count, and total failed attempts. Leaderboard below showing all teams that completed this hunt ranked by time. Button to return to /hunts.
+
+GLOBAL STATE (Context)
+
+currentUser — mock user with id, name, email, role
+teams — list of mock teams with members and progress
+hunts — list of mock hunts with clues
+
+MOCK DATA
+
+Seed at least 4 published hunts, 2 draft hunts, 3 teams with varying progress, 5 users. Each hunt has at least 4 clues.
+NAV
+
+Persistent top nav. If user is creator: show Dashboard, My Hunts, Logout. If player: show Browse, My Teams, Logout. If not logged in: show Login, Sign Up.
+CONSTRAINTS
+
+No backend
+No API calls
+No auth libraries
+No database
+Mobile responsive
+Do not add any payment, notification, or map features
+
