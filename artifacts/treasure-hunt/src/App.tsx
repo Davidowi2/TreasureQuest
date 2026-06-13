@@ -22,6 +22,7 @@ import NotFound from "@/pages/not-found";
 import Leaderboard from "@/pages/Leaderboard";
 import HuntDetail from "@/pages/HuntDetail";
 import Achievements from "@/pages/Achievements";
+import LivePanel from "@/pages/LivePanel";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,8 @@ function Router() {
       <Route path="/team/:teamId/lobby" component={TeamLobby} />
       <Route path="/game/:teamId" component={ActiveGame} />
       <Route path="/game/:teamId/complete" component={GameComplete} />
+
+      <Route path="/hunt/:huntId/live" component={LivePanel} />
 
       <Route component={NotFound} />
     </Switch>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Plus, Settings, Play, Archive, MoreVertical, Eye } from "lucide-react";
+import { Plus, Settings, Play, Archive, MoreVertical, Eye, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,16 @@ export default function CreatorDashboard() {
             onClick={() => handleStatusChange(hunt.id, 'published')}
           >
             <Play size={16} className="mr-2" /> Publish
+          </Button>
+        )}
+        {hunt.status === 'published' && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+            onClick={() => setLocation(`/hunt/${hunt.id}/live`)}
+          >
+            <Radio size={14} className="mr-1.5" /> Live
           </Button>
         )}
         
