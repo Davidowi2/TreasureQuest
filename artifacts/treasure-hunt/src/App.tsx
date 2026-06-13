@@ -9,6 +9,7 @@ import { Nav } from "@/components/Nav";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import Dashboard from "@/pages/Dashboard";
 import HuntDiscovery from "@/pages/HuntDiscovery";
 import HuntJoin from "@/pages/HuntJoin";
 import CreatorDashboard from "@/pages/CreatorDashboard";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/dashboard" component={Dashboard} />
       
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/achievements" component={Achievements} />

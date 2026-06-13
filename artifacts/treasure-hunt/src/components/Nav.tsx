@@ -31,6 +31,7 @@ export function Nav() {
     return (
       <>
         <Link href="/hunts" className="text-sm font-medium hover:text-primary transition-colors">Browse Hunts</Link>
+        <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">Dashboard</Link>
         <Link href="/leaderboard" className="text-sm font-medium hover:text-primary transition-colors">Leaderboard</Link>
         {(currentUser.role === "creator" || currentUser.role === "both") && (
           <Link href="/dashboard/creator" className="text-sm font-medium hover:text-primary transition-colors">My Hunts</Link>

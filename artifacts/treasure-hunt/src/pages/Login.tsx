@@ -27,11 +27,7 @@ export default function Login() {
     
     if (user) {
       setCurrentUser(user);
-      if (user.role === "creator" || user.role === "both") {
-        setLocation("/dashboard/creator");
-      } else {
-        setLocation("/dashboard/player");
-      }
+      setLocation("/dashboard");
     } else {
       setError("Invalid email or password.");
     }

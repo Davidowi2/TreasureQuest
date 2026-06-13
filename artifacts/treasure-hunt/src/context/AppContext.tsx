@@ -41,7 +41,8 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
 ];
 
 export type User = { id: string; name: string; email: string; role: Role; avatar?: string; };
-export type Clue = { id: string; huntId: string; order: number; hint: string; hintUnlockText: string; mediaUrl?: string; referenceImageUrl?: string; };
+export type ClueType = "text" | "image" | "audio";
+export type Clue = { id: string; huntId: string; order: number; hint: string; hintUnlockText: string; clueType: ClueType; mediaUrl?: string; audioUrl?: string; referenceImageUrl?: string; };
 export type Hunt = { 
   id: string; creatorId: string; creatorName: string; title: string; description: string; 
   difficulty: Difficulty; locationTag: string; status: HuntStatus; clues: Clue[]; 
@@ -127,62 +128,62 @@ const mockHunts: Hunt[] = [
     id: "h1", creatorId: "u1", creatorName: "Alice Chen", title: "The Lost Library", description: "Discover the hidden archives of the old city library.", difficulty: "hard", locationTag: "Downtown", status: "published", isShuffled: false, createdAt: new Date().toISOString(),
     huntType: "riddle", minTeamSize: 2, maxTeamSize: 6, timeLimit: 90, estimatedDuration: "60-90 min", totalPlayers: 312, completionRate: 64, rating: 4.8, ratingCount: 89,
     clues: [
-      { id: "c1", huntId: "h1", order: 1, hint: "Where words go to sleep.", hintUnlockText: "Check the basement archives." },
-      { id: "c2", huntId: "h1", order: 2, hint: "Look for the owl.", hintUnlockText: "The bronze owl statue near section B." },
-      { id: "c3", huntId: "h1", order: 3, hint: "A book with no title.", hintUnlockText: "Third shelf, red spine." },
-      { id: "c4", huntId: "h1", order: 4, hint: "The librarian's secret.", hintUnlockText: "Ask about the midnight reading." },
-      { id: "c5", huntId: "h1", order: 5, hint: "The final page.", hintUnlockText: "Under the main desk." }
+      { id: "c1", huntId: "h1", order: 1, hint: "Where words go to sleep.", hintUnlockText: "Check the basement archives.", clueType: "text" },
+      { id: "c2", huntId: "h1", order: 2, hint: "Look for the owl.", hintUnlockText: "The bronze owl statue near section B.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80" },
+      { id: "c3", huntId: "h1", order: 3, hint: "A book with no title.", hintUnlockText: "Third shelf, red spine.", clueType: "text" },
+      { id: "c4", huntId: "h1", order: 4, hint: "The librarian's secret.", hintUnlockText: "Ask about the midnight reading.", clueType: "audio", audioUrl: "/mock-audio/clue-h1-c4.mp3" },
+      { id: "c5", huntId: "h1", order: 5, hint: "The final page.", hintUnlockText: "Under the main desk.", clueType: "text" }
     ]
   },
   {
     id: "h2", creatorId: "u1", creatorName: "Alice Chen", title: "Harbor Secrets", description: "Follow the seagulls to maritime treasure.", difficulty: "medium", locationTag: "Waterfront", status: "published", isShuffled: true, createdAt: new Date().toISOString(),
     huntType: "photography", minTeamSize: 1, maxTeamSize: 8, estimatedDuration: "30-45 min", totalPlayers: 527, completionRate: 81, rating: 4.6, ratingCount: 134,
     clues: [
-      { id: "c6", huntId: "h2", order: 1, hint: "Where the big ships dock.", hintUnlockText: "Pier 39." },
-      { id: "c7", huntId: "h2", order: 2, hint: "The rusty anchor.", hintUnlockText: "Near the old seafood restaurant." },
-      { id: "c8", huntId: "h2", order: 3, hint: "Look out to sea.", hintUnlockText: "The telescopes on the boardwalk." },
-      { id: "c9", huntId: "h2", order: 4, hint: "The wooden captain.", hintUnlockText: "Statue at the maritime museum." }
+      { id: "c6", huntId: "h2", order: 1, hint: "Where the big ships dock.", hintUnlockText: "Pier 39.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80" },
+      { id: "c7", huntId: "h2", order: 2, hint: "The rusty anchor.", hintUnlockText: "Near the old seafood restaurant.", clueType: "text" },
+      { id: "c8", huntId: "h2", order: 3, hint: "Look out to sea.", hintUnlockText: "The telescopes on the boardwalk.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80" },
+      { id: "c9", huntId: "h2", order: 4, hint: "The wooden captain.", hintUnlockText: "Statue at the maritime museum.", clueType: "audio", audioUrl: "/mock-audio/clue-h2-c9.mp3" }
     ]
   },
   {
     id: "h3", creatorId: "u4", creatorName: "David Park", title: "Campus Mystery", description: "A quick hunt around the main university quad.", difficulty: "easy", locationTag: "University", status: "published", isShuffled: false, createdAt: new Date().toISOString(),
     huntType: "exploration", minTeamSize: 1, maxTeamSize: 10, estimatedDuration: "20-30 min", totalPlayers: 891, completionRate: 92, rating: 4.3, ratingCount: 201,
     clues: [
-      { id: "c10", huntId: "h3", order: 1, hint: "The founder's gaze.", hintUnlockText: "Statue in the center quad." },
-      { id: "c11", huntId: "h3", order: 2, hint: "Where math meets science.", hintUnlockText: "The physics building courtyard." },
-      { id: "c12", huntId: "h3", order: 3, hint: "The oldest tree.", hintUnlockText: "The large oak near the dorms." },
-      { id: "c13", huntId: "h3", order: 4, hint: "Student fuel.", hintUnlockText: "The main campus coffee shop." }
+      { id: "c10", huntId: "h3", order: 1, hint: "The founder's gaze.", hintUnlockText: "Statue in the center quad.", clueType: "text" },
+      { id: "c11", huntId: "h3", order: 2, hint: "Where math meets science.", hintUnlockText: "The physics building courtyard.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1562774053-701939374585?w=800&q=80" },
+      { id: "c12", huntId: "h3", order: 3, hint: "The oldest tree.", hintUnlockText: "The large oak near the dorms.", clueType: "audio", audioUrl: "/mock-audio/clue-h3-c12.mp3" },
+      { id: "c13", huntId: "h3", order: 4, hint: "Student fuel.", hintUnlockText: "The main campus coffee shop.", clueType: "text" }
     ]
   },
   {
     id: "h4", creatorId: "u4", creatorName: "David Park", title: "Art District Riddles", description: "Explore the vibrant murals of SoMa.", difficulty: "medium", locationTag: "SoMa", status: "published", isShuffled: false, createdAt: new Date().toISOString(),
     huntType: "trivia", minTeamSize: 2, maxTeamSize: 6, estimatedDuration: "45-60 min", totalPlayers: 445, completionRate: 73, rating: 4.7, ratingCount: 112,
     clues: [
-      { id: "c14", huntId: "h4", order: 1, hint: "The blue tiger.", hintUnlockText: "Mural on 5th street." },
-      { id: "c15", huntId: "h4", order: 2, hint: "Neon dreams.", hintUnlockText: "The gallery window display." },
-      { id: "c16", huntId: "h4", order: 3, hint: "Painted stairs.", hintUnlockText: "The alleyway next to the cafe." },
-      { id: "c17", huntId: "h4", order: 4, hint: "The mosaic eye.", hintUnlockText: "Look up at the corner of 6th." },
-      { id: "c18", huntId: "h4", order: 5, hint: "The final canvas.", hintUnlockText: "The community center wall." }
+      { id: "c14", huntId: "h4", order: 1, hint: "The blue tiger.", hintUnlockText: "Mural on 5th street.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1567359781514-3b964e2b04d6?w=800&q=80" },
+      { id: "c15", huntId: "h4", order: 2, hint: "Neon dreams.", hintUnlockText: "The gallery window display.", clueType: "audio", audioUrl: "/mock-audio/clue-h4-c15.mp3" },
+      { id: "c16", huntId: "h4", order: 3, hint: "Painted stairs.", hintUnlockText: "The alleyway next to the cafe.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1549887534-1541e9326642?w=800&q=80" },
+      { id: "c17", huntId: "h4", order: 4, hint: "The mosaic eye.", hintUnlockText: "Look up at the corner of 6th.", clueType: "text" },
+      { id: "c18", huntId: "h4", order: 5, hint: "The final canvas.", hintUnlockText: "The community center wall.", clueType: "image", mediaUrl: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800&q=80" }
     ]
   },
   {
     id: "h5", creatorId: "u1", creatorName: "Alice Chen", title: "Secret Garden", description: "Hidden botanical wonders.", difficulty: "easy", locationTag: "Botanical Park", status: "draft", isShuffled: false, createdAt: new Date().toISOString(),
     huntType: "photography", minTeamSize: 1, maxTeamSize: 6, estimatedDuration: "25-35 min", totalPlayers: 0, completionRate: 0, rating: 0, ratingCount: 0,
     clues: [
-      { id: "c19", huntId: "h5", order: 1, hint: "The thorny path.", hintUnlockText: "The cactus garden." },
-      { id: "c20", huntId: "h5", order: 2, hint: "Lily pads.", hintUnlockText: "The koi pond." },
-      { id: "c21", huntId: "h5", order: 3, hint: "The glass house.", hintUnlockText: "The main conservatory." },
-      { id: "c22", huntId: "h5", order: 4, hint: "Bonsai corner.", hintUnlockText: "The Japanese garden." }
+      { id: "c19", huntId: "h5", order: 1, hint: "The thorny path.", hintUnlockText: "The cactus garden.", clueType: "text" },
+      { id: "c20", huntId: "h5", order: 2, hint: "Lily pads.", hintUnlockText: "The koi pond.", clueType: "text" },
+      { id: "c21", huntId: "h5", order: 3, hint: "The glass house.", hintUnlockText: "The main conservatory.", clueType: "text" },
+      { id: "c22", huntId: "h5", order: 4, hint: "Bonsai corner.", hintUnlockText: "The Japanese garden.", clueType: "text" }
     ]
   },
   {
     id: "h6", creatorId: "u4", creatorName: "David Park", title: "The Clock Tower", description: "Time is ticking.", difficulty: "hard", locationTag: "Old Town", status: "draft", isShuffled: false, createdAt: new Date().toISOString(),
     huntType: "riddle", minTeamSize: 2, maxTeamSize: 4, timeLimit: 120, estimatedDuration: "90-120 min", totalPlayers: 0, completionRate: 0, rating: 0, ratingCount: 0,
     clues: [
-      { id: "c23", huntId: "h6", order: 1, hint: "The first bell.", hintUnlockText: "The town square." },
-      { id: "c24", huntId: "h6", order: 2, hint: "Cobblestone steps.", hintUnlockText: "The path leading up the hill." },
-      { id: "c25", huntId: "h6", order: 3, hint: "The gargoyle's view.", hintUnlockText: "The cathedral roof." },
-      { id: "c26", huntId: "h6", order: 4, hint: "Midnight strikes.", hintUnlockText: "The base of the tower." }
+      { id: "c23", huntId: "h6", order: 1, hint: "The first bell.", hintUnlockText: "The town square.", clueType: "text" },
+      { id: "c24", huntId: "h6", order: 2, hint: "Cobblestone steps.", hintUnlockText: "The path leading up the hill.", clueType: "text" },
+      { id: "c25", huntId: "h6", order: 3, hint: "The gargoyle's view.", hintUnlockText: "The cathedral roof.", clueType: "text" },
+      { id: "c26", huntId: "h6", order: 4, hint: "Midnight strikes.", hintUnlockText: "The base of the tower.", clueType: "text" }
     ]
   }
 ];

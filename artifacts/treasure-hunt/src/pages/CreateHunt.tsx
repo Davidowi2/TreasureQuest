@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Save, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, Play, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Save, Image as ImageIcon, Trash2, ArrowUp, ArrowDown, Play, Plus, Mic, Type, Headphones, Badge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppContext, Difficulty, Hunt, Clue } from "@/context/AppContext";
+import { useAppContext, Difficulty, Hunt, Clue, ClueType } from "@/context/AppContext";
 
 export default function CreateHunt() {
   const [, setLocation] = useLocation();
@@ -26,12 +26,12 @@ export default function CreateHunt() {
   if (!currentUser) return null;
 
   const addClue = () => {
-    setClues([...clues, { order: clues.length + 1, hint: "", hintUnlockText: "" }]);
+    setClues([...clues, { order: clues.length + 1, hint: "", hintUnlockText: "", clueType: "text" }]);
   };
 
   const updateClue = (index: number, field: keyof Clue, value: string) => {
     const newClues = [...clues];
-    newClues[index] = { ...newClues[index], [field]: value };
+    newClues[index] = { ...newClues[index], [field]: value } as any;
     setClues(newClues);
   };
 
@@ -95,7 +95,15 @@ export default function CreateHunt() {
         ...c,
         id: `c${Date.now()}-${i}`,
         huntId: `h${Date.now()}` // technically referencing self but mock data is loose
-      }))
+      })) as Clue[],
+      huntType: "exploration",
+      minTeamSize: 1,
+      maxTeamSize: 6,
+      estimatedDuration: "30-45 min",
+      totalPlayers: 0,
+      completionRate: 0,
+      rating: 0,
+      ratingCount: 0
     };
     
     setHunts([newHunt, ...hunts]);
@@ -206,6 +214,39 @@ export default function CreateHunt() {
                   <div className="mb-4 font-bold text-primary">Clue {index + 1}</div>
                   
                   <div className="space-y-4">
+                    <div className="space-y-2 mb-4">
+                      <Label className="mb-2 block">Clue Type</Label>
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button" 
+                          variant={clue.clueType === "text" ? "default" : "outline"} 
+                          size="sm" 
+                          className="rounded-full flex-1"
+                          onClick={() => updateClue(index, "clueType", "text")}
+                        >
+                          <Type size={14} className="mr-2" /> Text
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant={clue.clueType === "image" ? "default" : "outline"} 
+                          size="sm" 
+                          className="rounded-full flex-1"
+                          onClick={() => updateClue(index, "clueType", "image")}
+                        >
+                          <ImageIcon size={14} className="mr-2" /> Image
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant={clue.clueType === "audio" ? "default" : "outline"} 
+                          size="sm" 
+                          className="rounded-full flex-1"
+                          onClick={() => updateClue(index, "clueType", "audio")}
+                        >
+                          <Mic size={14} className="mr-2" /> Audio
+                        </Button>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <Label>Primary Hint</Label>
                       <Textarea 
@@ -216,6 +257,24 @@ export default function CreateHunt() {
                       />
                     </div>
                     
+                    {clue.clueType === "image" && (
+                      <div className="border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center gap-2 bg-muted/30 cursor-pointer hover:border-primary/50 transition-colors">
+                        <ImageIcon size={24} className="text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground font-medium">Upload clue image</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
+                        <input type="file" accept="image/*" className="sr-only" />
+                      </div>
+                    )}
+
+                    {clue.clueType === "audio" && (
+                      <div className="border-2 border-dashed border-border rounded-xl p-4 flex flex-col items-center gap-2 bg-muted/30 cursor-pointer hover:border-primary/50 transition-colors">
+                        <Mic size={24} className="text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground font-medium">Upload audio clue</p>
+                        <p className="text-xs text-muted-foreground">MP3, WAV, M4A — max 10MB</p>
+                        <input type="file" accept=".mp3,.wav,.m4a,audio/*" className="sr-only" />
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>Unlock Text (Shown if players get stuck)</Label>
                       <Input 
@@ -223,13 +282,6 @@ export default function CreateHunt() {
                         value={clue.hintUnlockText}
                         onChange={e => updateClue(index, "hintUnlockText", e.target.value)}
                       />
-                    </div>
-
-                    <div className="flex items-center gap-4 pt-2">
-                      <Button variant="secondary" size="sm" className="w-full sm:w-auto">
-                        <ImageIcon size={16} className="mr-2" /> Add Media (Optional)
-                      </Button>
-                      <span className="text-xs text-muted-foreground">Mocked for demo</span>
                     </div>
                   </div>
                 </CardContent>
@@ -269,8 +321,16 @@ export default function CreateHunt() {
                 <div className="space-y-3">
                   {clues.map((clue, i) => (
                     <div key={i} className="p-3 border rounded-lg flex gap-4">
-                      <div className="font-bold text-primary w-6">{i + 1}</div>
-                      <div>
+                      <div className="font-bold text-primary w-6 pt-1">{i + 1}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="secondary" className="text-[10px] capitalize">
+                            {clue.clueType === 'image' && <ImageIcon size={10} className="mr-1" />}
+                            {clue.clueType === 'audio' && <Headphones size={10} className="mr-1" />}
+                            {clue.clueType === 'text' && <Type size={10} className="mr-1" />}
+                            {clue.clueType}
+                          </Badge>
+                        </div>
                         <p className="font-medium text-sm">{clue.hint}</p>
                         <p className="text-xs text-muted-foreground mt-1">Unlock: {clue.hintUnlockText}</p>
                       </div>

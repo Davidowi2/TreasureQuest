@@ -34,12 +34,7 @@ export default function Signup() {
     };
 
     setCurrentUser(newUser);
-    
-    if (role === "creator" || role === "both") {
-      setLocation("/dashboard/creator");
-    } else {
-      setLocation("/dashboard/player");
-    }
+    setLocation("/dashboard");
   };
 
   return (
