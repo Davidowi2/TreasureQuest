@@ -1,9 +1,29 @@
-import { motion } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
+import { motion, useInView, animate } from "framer-motion";
 import { Link } from "wouter";
-import { Compass, Users, Map, Trophy, Target, Sparkles } from "lucide-react";
+import { Compass, Users, Map as MapIcon, Trophy, Target, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppContext } from "@/context/AppContext";
 import { HuntCard } from "@/components/HuntCard";
+
+function AnimatedCounter({ value, suffix = "", prefix = "" }: { value: number, suffix?: string, prefix?: string }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (inView) {
+      const controls = animate(0, value, {
+        duration: 2,
+        ease: "easeOut",
+        onUpdate: (v) => setCount(Math.floor(v)),
+      });
+      return controls.stop;
+    }
+  }, [inView, value]);
+
+  return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
+}
 
 export default function Landing() {
   const { hunts } = useAppContext();
@@ -51,6 +71,39 @@ export default function Landing() {
         {/* Background decorations */}
         <div className="absolute top-1/4 left-10 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-1/4 right-10 w-80 h-80 bg-accent/5 rounded-full blur-3xl -z-10" />
+      </section>
+
+      {/* Live Stats Section */}
+      <section className="bg-foreground text-background py-16 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x-0 md:divide-x divide-background/20">
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <span className="text-4xl md:text-5xl font-bold text-primary">
+                <AnimatedCounter value={2175} suffix="+" />
+              </span>
+              <span className="text-sm md:text-base font-medium opacity-80 uppercase tracking-wider">Adventurers</span>
+            </div>
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <span className="text-4xl md:text-5xl font-bold text-accent">
+                <AnimatedCounter value={6} />
+              </span>
+              <span className="text-sm md:text-base font-medium opacity-80 uppercase tracking-wider">Active Hunts</span>
+            </div>
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <span className="text-4xl md:text-5xl font-bold text-emerald-400">
+                <AnimatedCounter value={94} suffix="%" />
+              </span>
+              <span className="text-sm md:text-base font-medium opacity-80 uppercase tracking-wider">Completion Rate</span>
+            </div>
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <span className="text-4xl md:text-5xl font-bold text-violet-400">
+                <AnimatedCounter value={18} suffix=" min" />
+              </span>
+              <span className="text-sm md:text-base font-medium opacity-80 uppercase tracking-wider">Avg Completion</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* How it Works Section */}
@@ -103,13 +156,13 @@ export default function Landing() {
             <div className="space-y-8">
               <div className="flex items-center gap-4 mb-8">
                 <div className="p-3 bg-primary/10 rounded-xl text-primary">
-                  <Map size={32} />
+                  <MapIcon size={32} />
                 </div>
                 <h3 className="text-2xl font-bold">For Creators</h3>
               </div>
               <div className="space-y-6">
                 {[
-                  { icon: Map, title: "Design the Route", desc: "Pick a location and map out your exciting adventure." },
+                  { icon: MapIcon, title: "Design the Route", desc: "Pick a location and map out your exciting adventure." },
                   { icon: Sparkles, title: "Craft Clues", desc: "Write tricky hints and set up photo verification points." },
                   { icon: Users, title: "Invite Teams", desc: "Share your invite code and watch teams race in real-time." }
                 ].map((step, i) => (
@@ -184,6 +237,7 @@ export default function Landing() {
             <Link href="/login" className="hover:text-foreground transition-colors">Login</Link>
             <Link href="/signup" className="hover:text-foreground transition-colors">Sign Up</Link>
             <Link href="/hunts" className="hover:text-foreground transition-colors">Browse Hunts</Link>
+            <Link href="/leaderboard" className="hover:text-foreground transition-colors">Leaderboard</Link>
           </div>
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} TreasureQuest. All rights reserved.

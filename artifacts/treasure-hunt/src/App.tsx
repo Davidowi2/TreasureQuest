@@ -18,6 +18,8 @@ import ActiveGame from "@/pages/ActiveGame";
 import GameComplete from "@/pages/GameComplete";
 import PlayerDashboard from "@/pages/PlayerDashboard";
 import NotFound from "@/pages/not-found";
+import Leaderboard from "@/pages/Leaderboard";
+import HuntDetail from "@/pages/HuntDetail";
 
 const queryClient = new QueryClient();
 
@@ -28,9 +30,12 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       
+      <Route path="/leaderboard" component={Leaderboard} />
+
       <Route path="/hunts" component={HuntDiscovery} />
       <Route path="/hunts/new" component={CreateHunt} />
       <Route path="/hunts/:id/join" component={HuntJoin} />
+      <Route path="/hunts/:id" component={HuntDetail} />
       
       <Route path="/dashboard/creator" component={CreatorDashboard} />
       <Route path="/dashboard/player" component={PlayerDashboard} />

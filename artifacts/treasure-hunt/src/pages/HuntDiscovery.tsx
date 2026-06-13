@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, Filter, Compass } from "lucide-react";
+import { Search, Compass } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ export default function HuntDiscovery() {
   const { hunts } = useAppContext();
   const [searchTerm, setSearchTerm] = useState("");
   const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const publishedHunts = hunts.filter(h => h.status === "published");
 
@@ -19,20 +20,21 @@ export default function HuntDiscovery() {
       const matchesSearch = hunt.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                             hunt.locationTag.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDifficulty = difficultyFilter === "all" || hunt.difficulty === difficultyFilter;
-      return matchesSearch && matchesDifficulty;
+      const matchesType = typeFilter === "all" || hunt.huntType === typeFilter;
+      return matchesSearch && matchesDifficulty && matchesType;
     });
-  }, [publishedHunts, searchTerm, difficultyFilter]);
+  }, [publishedHunts, searchTerm, difficultyFilter, typeFilter]);
 
   return (
     <div className="container px-4 py-8 mx-auto max-w-7xl min-h-[calc(100vh-4rem)]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Browse Hunts</h1>
-          <p className="text-muted-foreground text-lg">Find your next adventure.</p>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">Discover Your Next Adventure</h1>
+          <p className="text-muted-foreground text-lg">Browse {publishedHunts.length} active hunts and start exploring.</p>
         </div>
       </div>
 
-      <div className="bg-card border p-4 rounded-xl shadow-sm mb-8 flex flex-col md:flex-row gap-4">
+      <div className="bg-card border p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row gap-4">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
           <Input 
@@ -41,6 +43,20 @@ export default function HuntDiscovery() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        <div className="w-full md:w-48 flex-shrink-0">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="h-12 bg-background">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="photography">Photography</SelectItem>
+              <SelectItem value="riddle">Riddle</SelectItem>
+              <SelectItem value="trivia">Trivia</SelectItem>
+              <SelectItem value="exploration">Exploration</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="w-full md:w-48 flex-shrink-0">
           <Select value={difficultyFilter} onValueChange={(val) => setDifficultyFilter(val as any)}>
@@ -55,6 +71,10 @@ export default function HuntDiscovery() {
             </SelectContent>
           </Select>
         </div>
+      </div>
+      
+      <div className="mb-6 flex justify-between items-center text-sm font-medium text-muted-foreground">
+        <span>Showing {filteredHunts.length} hunts</span>
       </div>
 
       {filteredHunts.length > 0 ? (
@@ -79,7 +99,7 @@ export default function HuntDiscovery() {
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             We couldn't find any hunts matching your search criteria. Try adjusting your filters.
           </p>
-          <Button variant="outline" onClick={() => { setSearchTerm(""); setDifficultyFilter("all"); }}>
+          <Button variant="outline" onClick={() => { setSearchTerm(""); setDifficultyFilter("all"); setTypeFilter("all"); }}>
             Clear Filters
           </Button>
         </div>
