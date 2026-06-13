@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useAppContext } from "@/context/AppContext";
+import { useAppContext, Hunt, Team } from "@/context/AppContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Radio, Megaphone, CheckCircle2, XCircle, Trophy, UserPlus, Lightbulb, AlertTriangle, Send } from "lucide-react";
@@ -26,6 +26,175 @@ const getAvatarColor = (userId: string) => {
   return `hsl(${hue}, 55%, 55%)`;
 };
 
+const COLS = 4;
+const NODE_W = 160;
+const NODE_H = 140;
+const PADDING = 40;
+
+function getNodePosition(index: number): { x: number; y: number } {
+  const row = Math.floor(index / COLS);
+  const col = index % COLS;
+  const isEvenRow = row % 2 === 0;
+  const effectiveCol = isEvenRow ? col : (COLS - 1 - col);
+  return {
+    x: PADDING + effectiveCol * NODE_W + NODE_W / 2,
+    y: PADDING + row * NODE_H + NODE_H / 2,
+  };
+}
+
+function getClueTypeIcon(type: string) {
+  if (type === "image") return "🖼";
+  if (type === "audio") return "🎵";
+  return "📜";
+}
+
+function MapView({ hunt, huntTeams, now }: { hunt: Hunt; huntTeams: Team[]; now: Date }) {
+  const numRows = Math.ceil((hunt.clues.length + 2) / COLS);
+  const mapWidth = PADDING * 2 + COLS * NODE_W;
+  const mapHeight = PADDING * 2 + numRows * NODE_H + 60;
+  
+  const allPositions = [
+    getNodePosition(0),
+    ...hunt.clues.map((_, i) => getNodePosition(i + 1)),
+    getNodePosition(hunt.clues.length + 1),
+  ];
+
+  const maxCompletedIndex = Math.max(...huntTeams.map(t => t.currentClueIndex), -1);
+
+  const nodeStyle = (pos: { x: number; y: number }) => ({
+    position: "absolute" as const,
+    left: pos.x - 32,
+    top: pos.y - 32,
+  });
+
+  const finishPos = allPositions[allPositions.length - 1];
+  const finishStyle = {
+    position: "absolute" as const,
+    left: finishPos.x - 40,
+    top: finishPos.y - 40,
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div
+        className="relative bg-gray-900/60 rounded-2xl border border-gray-800 overflow-auto"
+        style={{ minHeight: 300, height: Math.min(mapHeight + 20, 520) }}
+      >
+        <div className="relative" style={{ width: mapWidth, height: mapHeight }}>
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{ position: "absolute", top: 0, left: 0 }}
+            width={mapWidth}
+            height={mapHeight}
+          >
+            {allPositions.slice(0, -1).map((pos, i) => {
+              const next = allPositions[i + 1];
+              return (
+                <line
+                  key={i}
+                  x1={pos.x}
+                  y1={pos.y}
+                  x2={next.x}
+                  y2={next.y}
+                  stroke="#374151"
+                  strokeWidth={4}
+                  strokeDasharray="8 6"
+                />
+              );
+            })}
+          </svg>
+
+          {/* START */}
+          <div style={nodeStyle(allPositions[0])} className="w-16 h-16 rounded-full bg-gray-700 border-2 border-gray-500 flex flex-col items-center justify-center text-gray-300">
+            <span className="text-lg">🏁</span>
+            <span className="text-[10px] font-bold tracking-wider">START</span>
+          </div>
+
+          {/* Clues */}
+          {hunt.clues.map((clue, i) => {
+            const pos = allPositions[i + 1];
+            const isCompleted = maxCompletedIndex >= i;
+            return (
+              <div
+                key={clue.id}
+                style={nodeStyle(pos)}
+                className={`w-16 h-16 rounded-full border-2 flex flex-col items-center justify-center text-center shadow-lg transition-all ${
+                  isCompleted ? "bg-green-900 border-green-500" : "bg-gray-800 border-gray-600"
+                }`}
+              >
+                <span className="text-[10px] font-semibold text-gray-400 uppercase">{getClueTypeIcon(clue.clueType)}</span>
+                <span className="text-lg font-bold text-white">{i + 1}</span>
+              </div>
+            );
+          })}
+
+          {/* FINISH */}
+          <div style={finishStyle} className="w-20 h-20 rounded-full bg-yellow-900/50 border-2 border-yellow-500 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.4)]">
+            <span className="text-2xl">🏆</span>
+            <span className="text-[10px] font-bold text-yellow-400 tracking-wider">FINISH</span>
+          </div>
+
+          {/* Blobs */}
+          {huntTeams.filter(t => t.status !== "lobby").map((team) => {
+            const nodeIdx = team.status === "complete"
+              ? hunt.clues.length + 1
+              : Math.min(team.currentClueIndex + 1, hunt.clues.length + 1);
+            
+            const pos = allPositions[nodeIdx];
+            const teamsAtNode = huntTeams.filter(t => {
+              const ni = t.status === "complete" ? hunt.clues.length + 1 : Math.min(t.currentClueIndex + 1, hunt.clues.length + 1);
+              return ni === nodeIdx && t.status !== "lobby";
+            });
+            const stackIdx = teamsAtNode.findIndex(t => t.id === team.id);
+            const offsetX = (stackIdx - (teamsAtNode.length - 1) / 2) * 20;
+
+            const teamColor = getTeamColor(team.id);
+            const isStuck = team.failedAttempts >= 3 && team.status === "active";
+
+            return (
+              <motion.div
+                key={team.id}
+                animate={{
+                  x: pos.x - 20 + offsetX,
+                  y: pos.y - 50,
+                }}
+                transition={{ type: "spring", stiffness: 100, damping: 20 }}
+                style={{ position: "absolute", top: 0, left: 0 }}
+                className="flex flex-col items-center gap-1 cursor-pointer"
+                title={`${team.name}: Clue ${team.currentClueIndex + 1} of ${hunt.clues.length}`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center text-sm font-bold text-white shadow-lg ${isStuck ? "ring-2 ring-red-500 animate-pulse" : ""}`}
+                  style={{ backgroundColor: teamColor, boxShadow: `0 0 12px ${teamColor}60` }}
+                >
+                  {team.name.substring(0, 2).toUpperCase()}
+                </div>
+                <span
+                  className="text-[9px] font-bold whitespace-nowrap px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: teamColor + "33", color: teamColor }}
+                >
+                  {team.name}
+                </span>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+      
+      <div className="flex flex-wrap gap-3">
+        {huntTeams.filter(t => t.status !== "lobby").map(team => (
+          <div key={team.id} className="flex items-center gap-2 text-xs">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getTeamColor(team.id) }} />
+            <span className="text-gray-300">{team.name}</span>
+            <span className="text-gray-500">Clue {team.currentClueIndex + 1}/{hunt.clues.length}</span>
+            {team.status === "complete" && <span className="text-yellow-400">✓ Done</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function LivePanel() {
   const [, params] = useRoute("/hunt/:huntId/live");
   const huntId = params?.huntId;
@@ -38,6 +207,7 @@ export default function LivePanel() {
   const [activeHintTeamId, setActiveHintTeamId] = useState<string | null>(null);
   const [hintText, setHintText] = useState("");
   const [now, setNow] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"grid" | "map">("map");
 
   const feedEndRef = useRef<HTMLDivElement>(null);
 
@@ -252,6 +422,20 @@ export default function LivePanel() {
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-xs font-bold tracking-wider">LIVE</span>
           </div>
+          <div className="flex bg-gray-800 rounded-lg p-1 gap-1 ml-4">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${viewMode === "grid" ? "bg-gray-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode("map")}
+              className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${viewMode === "map" ? "bg-gray-600 text-white" : "text-gray-400 hover:text-gray-200"}`}
+            >
+              Map
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-6 text-sm font-medium">
           <div className="flex items-center gap-2">
@@ -303,9 +487,10 @@ export default function LivePanel() {
       <div className="flex-1 flex flex-col md:flex-row p-6 gap-6 max-w-[1600px] mx-auto w-full">
         
         <div className="flex-1">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {huntTeams.map(team => {
-              const teamColor = getTeamColor(team.id);
+          {viewMode === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {huntTeams.map(team => {
+                const teamColor = getTeamColor(team.id);
               const progressPct = Math.min(team.currentClueIndex / hunt.clues.length * 100, 100);
               const isStuck = team.failedAttempts >= 3 && team.status === "active";
               const teamElapsedSeconds = team.startTime && team.status !== "complete" 
@@ -396,7 +581,10 @@ export default function LivePanel() {
                 </div>
               );
             })}
-          </div>
+            </div>
+          ) : (
+            <MapView hunt={hunt} huntTeams={huntTeams} now={now} />
+          )}
         </div>
 
         <div className="w-full md:w-[350px] lg:w-[400px] flex flex-col gap-4">
