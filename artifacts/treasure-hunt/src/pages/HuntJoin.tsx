@@ -46,6 +46,7 @@ export default function HuntJoin() {
       status: "lobby",
       currentClueIndex: 0,
       failedAttempts: 0,
+      messages: [],
       members: [
         {
           userId: currentUser.id,

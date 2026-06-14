@@ -1,8 +1,6 @@
 import { pgTable, timestamp, uuid, pgEnum, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
+import { type InferModel } from "drizzle-orm";
 import { teamsTable } from "./teams";
-import { relations } from "drizzle-orm";
 
 export const gameStatusEnum = pgEnum("game_status", ["active", "paused", "completed"]);
 
@@ -16,15 +14,5 @@ export const teamProgressTable = pgTable("team_progress", {
   completedAt: timestamp("completed_at"),
 });
 
-export const teamProgressRelations = relations(teamProgressTable, ({ one }) => ({
-  team: one(teamsTable, {
-    fields: [teamProgressTable.teamId],
-    references: [teamsTable.id],
-  }),
-}));
-
-export const insertTeamProgressSchema = createInsertSchema(teamProgressTable).omit({ id: true });
-export const selectTeamProgressSchema = createSelectSchema(teamProgressTable);
-
-export type InsertTeamProgress = z.infer<typeof insertTeamProgressSchema>;
-export type TeamProgress = z.infer<typeof selectTeamProgressSchema>;
+export type InsertTeamProgress = InferModel<typeof teamProgressTable, "insert">;
+export type TeamProgress = InferModel<typeof teamProgressTable, "select">;

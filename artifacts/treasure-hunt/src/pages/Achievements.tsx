@@ -174,7 +174,7 @@ export default function Achievements() {
                     const earnedRecord = myAchievements.find(a => a.achievementId === achievement.id);
                     
                     return (
-                      <motion.div key={achievement.id} variants={item}>
+                      <motion.div key={achievement.id} variants={item as any}>
                         <Card className={`h-full overflow-hidden transition-all duration-300 ${isEarned ? 'border-primary/20 hover:border-primary/40 bg-card shadow-sm' : 'bg-muted/30 border-dashed border-muted-foreground/30'}`}>
                           {isEarned && (
                             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />

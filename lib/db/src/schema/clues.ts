@@ -1,8 +1,6 @@
 import { pgTable, text, timestamp, uuid, pgEnum, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
+import { type InferModel } from "drizzle-orm";
 import { huntsTable } from "./hunts";
-import { relations } from "drizzle-orm";
 
 export const clueTypeEnum = pgEnum("clue_type", ["text", "image", "audio"]);
 
@@ -18,15 +16,5 @@ export const cluesTable = pgTable("clues", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const cluesRelations = relations(cluesTable, ({ one }) => ({
-  hunt: one(huntsTable, {
-    fields: [cluesTable.huntId],
-    references: [huntsTable.id],
-  }),
-}));
-
-export const insertClueSchema = createInsertSchema(cluesTable).omit({ id: true, createdAt: true });
-export const selectClueSchema = createSelectSchema(cluesTable);
-
-export type InsertClue = z.infer<typeof insertClueSchema>;
-export type Clue = z.infer<typeof selectClueSchema>;
+export type InsertClue = InferModel<typeof cluesTable, "insert">;
+export type Clue = InferModel<typeof cluesTable, "select">;

@@ -1,16 +1,11 @@
 import { httpServer, io } from "./app";
 import { logger } from "./lib/logger";
 import { db } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { teamMembersTable, teamsTable } from "@workspace/db/schema";
+import type { Socket } from "socket.io";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+const rawPort = process.env["PORT"] || "8080";
 
 const port = Number(rawPort);
 
@@ -22,7 +17,7 @@ if (Number.isNaN(port) || port <= 0) {
 const userSocketMap = new Map<string, string>(); // userId -> socketId
 const socketUserMap = new Map<string, { userId: string; teamId?: string }>(); // socketId -> { userId, teamId }
 
-io.on("connection", async (socket) => {
+io.on("connection", (socket: Socket) => {
   logger.info(`Socket connected: ${socket.id}`);
   
   socket.on("join_team", async (data: { userId: string; teamId: string }) => {
@@ -37,8 +32,10 @@ io.on("connection", async (socket) => {
     // Update user is_active to true
     await db.update(teamMembersTable)
       .set({ isActive: true })
-      .where(eq(teamMembersTable.userId, userId))
-      .where(eq(teamMembersTable.teamId, teamId));
+      .where(and(
+        eq(teamMembersTable.userId, userId),
+        eq(teamMembersTable.teamId, teamId),
+      ));
     
     // Emit member_joined to room
     io.to(`team:${teamId}`).emit("member_joined", { userId });
@@ -55,8 +52,10 @@ io.on("connection", async (socket) => {
     // Update user is_active to false
     await db.update(teamMembersTable)
       .set({ isActive: false })
-      .where(eq(teamMembersTable.userId, userId))
-      .where(eq(teamMembersTable.teamId, teamId));
+      .where(and(
+        eq(teamMembersTable.userId, userId),
+        eq(teamMembersTable.teamId, teamId),
+      ));
     
     // Emit member_disconnected
     io.to(`team:${teamId}`).emit("member_disconnected", { userId });
@@ -64,12 +63,12 @@ io.on("connection", async (socket) => {
     // Check if leader disconnected, promote new leader
     const teamMembers = await db.query.teamMembersTable.findMany({
       where: eq(teamMembersTable.teamId, teamId),
-      orderBy: (teamMembers, { asc }) => [asc(teamMembers.joinedAt)],
+      orderBy: (tm, { asc }) => [asc(tm.joinedAt)],
     });
     
-    const leader = teamMembers.find(m => m.teamRole === "leader");
+    const leader = teamMembers.find((m) => m.teamRole === "leader");
     if (leader && !leader.isActive) {
-      const newLeader = teamMembers.find(m => m.isActive);
+      const newLeader = teamMembers.find((m) => m.isActive);
       if (newLeader) {
         await db.update(teamMembersTable)
           .set({ teamRole: "leader" })
@@ -87,12 +86,7 @@ io.on("connection", async (socket) => {
   });
 });
 
-httpServer.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-
+httpServer.listen(port, () => {
   logger.info({ port }, "Server listening");
 });
 

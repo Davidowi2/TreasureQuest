@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { fetchAPI } from '../lib/api';
 
 type Role = "creator" | "player" | "both";
 export type Difficulty = "easy" | "medium" | "hard";
@@ -72,62 +73,6 @@ export type ChatMessage = {
 };
 
 export type Team = { id: string; huntId: string; name: string; inviteCode: string; members: TeamMember[]; status: TeamStatus; currentClueIndex: number; startTime?: string; endTime?: string; failedAttempts: number; completedAt?: string; totalTime?: number; messages: ChatMessage[]; };
-
-export function evaluateAchievements(
-  userId: string,
-  teams: Team[],
-  hunts: Hunt[],
-  existing: UserAchievement[]
-): string[] {
-  const existingIds = new Set(existing.map(a => a.achievementId));
-  const earned: string[] = [];
-
-  const myCompletedTeams = teams.filter(t =>
-    t.status === "complete" &&
-    t.members.some(m => m.userId === userId)
-  );
-
-  const getHunt = (huntId: string) => hunts.find(h => h.id === huntId);
-
-  const totalCompleted = myCompletedTeams.length;
-  const hasFailed5 = myCompletedTeams.some(t => t.failedAttempts >= 5);
-  const hasPerfect = myCompletedTeams.some(t => t.failedAttempts === 0);
-  const hasSub20 = myCompletedTeams.some(t => (t.totalTime || 999999) < 20 * 60);
-  const hasSub15 = myCompletedTeams.some(t => (t.totalTime || 999999) < 15 * 60);
-  const hasHard = myCompletedTeams.some(t => getHunt(t.huntId)?.difficulty === "hard");
-  const hasTeam3 = myCompletedTeams.some(t => t.members.length >= 3);
-  const riddleCount = myCompletedTeams.filter(t => getHunt(t.huntId)?.huntType === "riddle").length;
-  const photoCount = myCompletedTeams.filter(t => getHunt(t.huntId)?.huntType === "photography").length;
-  const completedTypes = new Set(myCompletedTeams.map(t => getHunt(t.huntId)?.huntType).filter(Boolean));
-
-  if (!existingIds.has("first_steps") && totalCompleted >= 1) earned.push("first_steps");
-  if (!existingIds.has("team_spirit") && hasTeam3) earned.push("team_spirit");
-  if (!existingIds.has("comeback_kid") && hasFailed5) earned.push("comeback_kid");
-  if (!existingIds.has("hard_boiled") && hasHard) earned.push("hard_boiled");
-  if (!existingIds.has("perfectionist") && hasPerfect) earned.push("perfectionist");
-  if (!existingIds.has("speed_demon") && hasSub20) earned.push("speed_demon");
-  if (!existingIds.has("riddle_master") && riddleCount >= 3) earned.push("riddle_master");
-  if (!existingIds.has("lens_hero") && photoCount >= 3) earned.push("lens_hero");
-  if (!existingIds.has("lightning_fast") && hasSub15) earned.push("lightning_fast");
-  if (!existingIds.has("type_collector") && completedTypes.size >= 4) earned.push("type_collector");
-  if (!existingIds.has("hunt_legend") && totalCompleted >= 5) earned.push("hunt_legend");
-
-  return earned;
-}
-
-interface AppContextType {
-  currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
-  hunts: Hunt[];
-  setHunts: React.Dispatch<React.SetStateAction<Hunt[]>>;
-  teams: Team[];
-  setTeams: React.Dispatch<React.SetStateAction<Team[]>>;
-  users: User[];
-  userAchievements: Record<string, UserAchievement[]>;
-  setUserAchievements: React.Dispatch<React.SetStateAction<Record<string, UserAchievement[]>>>;
-  awardAchievements: (userId: string, ids: string[], huntId?: string, teamName?: string) => UserAchievement[];
-  sendMessage: (teamId: string, text: string) => void;
-}
 
 const mockUsers: User[] = [
   { id: "u1", name: "Alice Chen", email: "alice@example.com", role: "creator" },
@@ -315,6 +260,106 @@ const mockUserAchievements: Record<string, UserAchievement[]> = {
   ],
 };
 
+interface AppContextType {
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
+  hunts: Hunt[];
+  setHunts: React.Dispatch<React.SetStateAction<Hunt[]>>;
+  teams: Team[];
+  setTeams: React.Dispatch<React.SetStateAction<Team[]>>;
+  users: User[];
+  userAchievements: Record<string, UserAchievement[]>;
+  setUserAchievements: React.Dispatch<React.SetStateAction<Record<string, UserAchievement[]>>>;
+  awardAchievements: (userId: string, ids: string[], huntId?: string, teamName?: string) => UserAchievement[];
+  sendMessage: (teamId: string, text: string) => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, role: Role) => Promise<void>;
+  logout: () => Promise<void>;
+  fetchHunts: (filters?: { difficulty?: string; locationTag?: string; search?: string }) => Promise<void>;
+  isLoading: boolean;
+}
+
+// Function to evaluate achievements
+export function evaluateAchievements(userId: string, teams: Team[], hunts: Hunt[], existing: UserAchievement[]): string[] {
+  const earnedIds = existing.map(a => a.achievementId);
+  const newIds: string[] = [];
+  
+  const userTeams = teams.filter(t => t.members.some(m => m.userId === userId));
+  const completedTeams = userTeams.filter(t => t.status === "complete");
+  
+  // First steps
+  if (!earnedIds.includes("first_steps") && completedTeams.length > 0) {
+    newIds.push("first_steps");
+  }
+  
+  // Team spirit
+  if (!earnedIds.includes("team_spirit") && completedTeams.some(t => t.members.length >= 3)) {
+    newIds.push("team_spirit");
+  }
+  
+  // Comeback kid
+  if (!earnedIds.includes("comeback_kid") && completedTeams.some(t => t.failedAttempts >= 5)) {
+    newIds.push("comeback_kid");
+  }
+  
+  // Perfectionist
+  if (!earnedIds.includes("perfectionist") && completedTeams.some(t => t.failedAttempts === 0)) {
+    newIds.push("perfectionist");
+  }
+  
+  // Speed demon
+  if (!earnedIds.includes("speed_demon") && completedTeams.some(t => t.totalTime && t.totalTime <= 20 * 60)) {
+    newIds.push("speed_demon");
+  }
+  
+  // Lightning fast
+  if (!earnedIds.includes("lightning_fast") && completedTeams.some(t => t.totalTime && t.totalTime <= 15 * 60)) {
+    newIds.push("lightning_fast");
+  }
+  
+  // Map maker - we don't have real published hunts yet, so skip
+  // Hard boiled - check if any completed hunt is hard difficulty
+  if (!earnedIds.includes("hard_boiled")) {
+    const hasHard = completedTeams.some(t => {
+      const hunt = hunts.find(h => h.id === t.huntId);
+      return hunt?.difficulty === "hard";
+    });
+    if (hasHard) newIds.push("hard_boiled");
+  }
+  
+  // Hunt legend - 5 or more completed
+  if (!earnedIds.includes("hunt_legend") && completedTeams.length >= 5) {
+    newIds.push("hunt_legend");
+  }
+  
+  // Riddle master, lens hero, type collector - count hunt types
+  const completedHuntTypes = new Set<string>();
+  completedTeams.forEach(t => {
+    const hunt = hunts.find(h => h.id === t.huntId);
+    if (hunt) completedHuntTypes.add(hunt.huntType);
+  });
+  
+  if (!earnedIds.includes("riddle_master") && completedTeams.filter(t => {
+    const hunt = hunts.find(h => h.id === t.huntId);
+    return hunt?.huntType === "riddle";
+  }).length >=3) {
+    newIds.push("riddle_master");
+  }
+  
+  if (!earnedIds.includes("lens_hero") && completedTeams.filter(t => {
+    const hunt = hunts.find(h => h.id === t.huntId);
+    return hunt?.huntType === "photography";
+  }).length >=3) {
+    newIds.push("lens_hero");
+  }
+  
+  if (!earnedIds.includes("type_collector") && completedHuntTypes.size >=4) {
+    newIds.push("type_collector");
+  }
+  
+  return newIds;
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -322,6 +367,90 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [hunts, setHunts] = useState<Hunt[]>(mockHunts);
   const [teams, setTeams] = useState<Team[]>(mockTeams);
   const [userAchievements, setUserAchievements] = useState<Record<string, UserAchievement[]>>(mockUserAchievements);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const data = await fetchAPI<{ user: User }>('/api/v1/auth/me');
+      setCurrentUser(data.user);
+    } catch {
+      setCurrentUser(null);
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      const data = await fetchAPI<{ user: User }>('/api/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      setCurrentUser(data.user);
+    } catch (error) {
+      console.error("Login failed, falling back to mock", error);
+      const mockUser = mockUsers.find(u => u.email === email) || mockUsers[0];
+      setCurrentUser(mockUser);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signup = async (name: string, email: string, password: string, role: Role) => {
+    setIsLoading(true);
+    try {
+      const data = await fetchAPI<{ user: User }>('/api/v1/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, role }),
+      });
+      setCurrentUser(data.user);
+    } catch (error) {
+      console.error("Signup failed, falling back to mock", error);
+      const newUser: User = {
+        id: `u-${Date.now()}`,
+        name,
+        email,
+        role,
+      };
+      setCurrentUser(newUser);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await fetchAPI('/api/v1/auth/logout', { method: 'POST' });
+    } finally {
+      setCurrentUser(null);
+    }
+  };
+
+  const fetchHunts = async (filters?: { difficulty?: string; locationTag?: string; search?: string }) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (filters?.difficulty) params.set('difficulty', filters.difficulty);
+      if (filters?.locationTag) params.set('locationTag', filters.locationTag);
+      if (filters?.search) params.set('search', filters.search);
+
+      const data = await fetchAPI<Hunt[]>(`/api/v1/hunts?${params.toString()}`);
+      setHunts(data);
+    } catch (error) {
+      console.error("Fetch hunts failed, using mock", error);
+      setHunts(mockHunts.filter(h => {
+        if (filters?.difficulty && h.difficulty !== filters.difficulty) return false;
+        if (filters?.locationTag && h.locationTag !== filters.locationTag) return false;
+        if (filters?.search && !h.title.toLowerCase().includes(filters.search.toLowerCase())) return false;
+        return true;
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const awardAchievements = (userId: string, ids: string[], huntId?: string, teamName?: string): UserAchievement[] => {
     const newOnes: UserAchievement[] = ids.map(id => ({
@@ -355,7 +484,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider value={{ 
       currentUser, setCurrentUser, hunts, setHunts, teams, setTeams, users: mockUsers,
-      userAchievements, setUserAchievements, awardAchievements, sendMessage
+      userAchievements, setUserAchievements, awardAchievements, sendMessage,
+      login, signup, logout, fetchHunts, isLoading
     }}>
       {children}
     </AppContext.Provider>

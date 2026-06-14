@@ -1,9 +1,7 @@
 import { pgTable, timestamp, uuid, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
+import { type InferModel } from "drizzle-orm";
 import { teamsTable } from "./teams";
 import { cluesTable } from "./clues";
-import { relations } from "drizzle-orm";
 
 export const clueAttemptsTable = pgTable("clue_attempts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -13,19 +11,5 @@ export const clueAttemptsTable = pgTable("clue_attempts", {
   solvedAt: timestamp("solved_at"),
 });
 
-export const clueAttemptsRelations = relations(clueAttemptsTable, ({ one }) => ({
-  team: one(teamsTable, {
-    fields: [clueAttemptsTable.teamId],
-    references: [teamsTable.id],
-  }),
-  clue: one(cluesTable, {
-    fields: [clueAttemptsTable.clueId],
-    references: [cluesTable.id],
-  }),
-}));
-
-export const insertClueAttemptSchema = createInsertSchema(clueAttemptsTable).omit({ id: true });
-export const selectClueAttemptSchema = createSelectSchema(clueAttemptsTable);
-
-export type InsertClueAttempt = z.infer<typeof insertClueAttemptSchema>;
-export type ClueAttempt = z.infer<typeof selectClueAttemptSchema>;
+export type InsertClueAttempt = InferModel<typeof clueAttemptsTable, "insert">;
+export type ClueAttempt = InferModel<typeof clueAttemptsTable, "select">;

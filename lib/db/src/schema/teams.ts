@@ -1,9 +1,7 @@
-import { pgTable, text, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
+import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { type InferModel } from "drizzle-orm";
 import { huntsTable } from "./hunts";
 import { usersTable } from "./users";
-import { relations } from "drizzle-orm";
 
 export const teamsTable = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -13,29 +11,8 @@ export const teamsTable = pgTable("teams", {
   leaderId: uuid("leader_id").notNull().references(() => usersTable.id),
   startedAt: timestamp("started_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
 });
 
-export const teamsRelations = relations(teamsTable, ({ one, many }) => ({
-  hunt: one(huntsTable, {
-    fields: [teamsTable.huntId],
-    references: [huntsTable.id],
-  }),
-  leader: one(usersTable, {
-    fields: [teamsTable.leaderId],
-    references: [usersTable.id],
-  }),
-  members: many(() => teamMembersTable),
-  progress: one(() => teamProgressTable),
-  clueAttempts: many(() => clueAttemptsTable),
-}));
-
-export const insertTeamSchema = createInsertSchema(teamsTable).omit({ id: true, createdAt: true });
-export const selectTeamSchema = createSelectSchema(teamsTable);
-
-export type InsertTeam = z.infer<typeof insertTeamSchema>;
-export type Team = z.infer<typeof selectTeamSchema>;
-
-// Imports to avoid circular dependencies
-import { teamMembersTable } from "./teamMembers";
-import { teamProgressTable } from "./teamProgress";
-import { clueAttemptsTable } from "./clueAttempts";
+export type InsertTeam = InferModel<typeof teamsTable, "insert">;
+export type Team = InferModel<typeof teamsTable, "select">;
