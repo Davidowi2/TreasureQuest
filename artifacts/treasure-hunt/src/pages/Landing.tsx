@@ -20,6 +20,7 @@ function AnimatedCounter({ value, suffix = "", prefix = "" }: { value: number, s
       });
       return controls.stop;
     }
+    return undefined;
   }, [inView, value]);
 
   return <span ref={ref}>{prefix}{count.toLocaleString()}{suffix}</span>;
