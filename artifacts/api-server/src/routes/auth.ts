@@ -5,6 +5,18 @@ import { OAuth2Client } from "google-auth-library";
 
 const oauthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const ADMIN_EMAIL = "OwiDavid2002@gmail.com".toLowerCase();
+
+function getSafeUser(user: any) {
+  const role = user.email.toLowerCase() === ADMIN_EMAIL ? "admin" : user.role;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role,
+  };
+}
+
 const router = Router();
 
 // Signup
@@ -30,9 +42,7 @@ router.post("/signup", async (req: Request, res: Response) => {
       sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const safeUser: any = {
-      id: user.id, name: user.name, email: user.email, role: user.role,
-    };
+    const safeUser = getSafeUser(user);
     return res.json({ user: safeUser, token });
 
   } catch (e) {
@@ -59,9 +69,7 @@ router.post("/login", async (req: Request, res: Response) => {
       sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const safeUser: any = {
-      id: user.id, name: user.name, email: user.email, role: user.role,
-    };
+    const safeUser = getSafeUser(user);
     return res.json({ user: safeUser, token });
   } catch (e) {
     console.error(e);
@@ -78,13 +86,19 @@ router.post("/google", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "idToken is required" });
     }
 
+    console.log("Google OAuth: Verifying ID token...");
+    
     // Verify ID token with Google
     const ticket = await oauthClient.verifyIdToken({
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
+    
+    console.log("Google OAuth: Payload received:", payload);
+    
     if (!payload || !payload.email) {
+      console.error("Google OAuth: Invalid payload - no email found");
       return res.status(401).json({ error: "Invalid ID token" });
     }
 
@@ -128,13 +142,11 @@ router.post("/google", async (req: Request, res: Response) => {
       sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    const safeUser: any = {
-      id: user.id, name: user.name, email: user.email, role: user.role,
-    };
+    const safeUser = getSafeUser(user);
     return res.json({ user: safeUser, token });
   } catch (e) {
-    console.error("Google OAuth error:", e);
-    return res.status(401).json({ error: "Invalid ID token" });
+    console.error("Google OAuth error details:", e);
+    return res.status(401).json({ error: "Invalid ID token", details: (e as Error).message });
   }
 });
 
@@ -153,12 +165,7 @@ router.get("/me", authMiddleware, async (req: Request, res: Response) => {
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const safeUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    };
+    const safeUser = getSafeUser(user);
     return res.json({ user: safeUser });
   } catch (e) {
     console.error(e);

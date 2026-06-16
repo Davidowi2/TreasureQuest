@@ -33,10 +33,13 @@ export function Nav() {
         <Link href="/hunts" className="text-sm font-medium hover:text-primary transition-colors">Browse Hunts</Link>
         <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">Dashboard</Link>
         <Link href="/leaderboard" className="text-sm font-medium hover:text-primary transition-colors">Leaderboard</Link>
-        {(currentUser.role === "creator" || currentUser.role === "both") && (
+        {currentUser.role === "admin" && (
+          <Link href="/admin" className="text-sm font-medium hover:text-primary transition-colors">Admin Panel</Link>
+        )}
+        {(currentUser.role === "creator" || currentUser.role === "both" || currentUser.role === "admin") && (
           <Link href="/dashboard/creator" className="text-sm font-medium hover:text-primary transition-colors">My Hunts</Link>
         )}
-        {(currentUser.role === "player" || currentUser.role === "both") && (
+        {(currentUser.role === "player" || currentUser.role === "both" || currentUser.role === "admin") && (
           <Link href="/dashboard/player" className="text-sm font-medium hover:text-primary transition-colors">My Teams</Link>
         )}
         <Link href="/achievements" className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors">

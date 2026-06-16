@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-import { AppProvider } from "@/context/AppContext";
+import { AppProvider, useAppContext } from "@/context/AppContext";
 import { Nav } from "@/components/Nav";
 import { CookieBanner } from "@/components/CookieBanner";
 
@@ -31,6 +31,16 @@ import HostLobby from "@/pages/HostLobby";
 
 const queryClient = new QueryClient();
 
+function DashboardRoute() {
+  const { currentUser } = useAppContext();
+  
+  if (currentUser?.role === "admin") {
+    return <AdminDashboard />;
+  }
+  
+  return <Dashboard />;
+}
+
 function Router() {
   return (
     <Switch>
@@ -39,7 +49,7 @@ function Router() {
       <Route path="/terms" component={TermsOfService} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard" component={DashboardRoute} />
       
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/leaderboard/:huntId" component={Leaderboard} />
@@ -59,6 +69,7 @@ function Router() {
 
       <Route path="/hunt/:huntId/live" component={LivePanel} />
       <Route path="/hunt/:huntId/lobby" component={HostLobby} />
+      <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/hunts/:huntId" component={AdminDashboard} />
 
       <Route component={NotFound} />
