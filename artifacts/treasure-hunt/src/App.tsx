@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { AppProvider } from "@/context/AppContext";
 import { Nav } from "@/components/Nav";
+import { CookieBanner } from "@/components/CookieBanner";
 
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
@@ -23,6 +24,9 @@ import Leaderboard from "@/pages/Leaderboard";
 import HuntDetail from "@/pages/HuntDetail";
 import Achievements from "@/pages/Achievements";
 import LivePanel from "@/pages/LivePanel";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
+import AdminDashboard from "@/pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -30,11 +34,14 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/dashboard" component={Dashboard} />
       
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/leaderboard/:huntId" component={Leaderboard} />
       <Route path="/achievements" component={Achievements} />
 
       <Route path="/hunts" component={HuntDiscovery} />
@@ -50,6 +57,7 @@ function Router() {
       <Route path="/game/:teamId/complete" component={GameComplete} />
 
       <Route path="/hunt/:huntId/live" component={LivePanel} />
+      <Route path="/admin/hunts/:huntId" component={AdminDashboard} />
 
       <Route component={NotFound} />
     </Switch>
@@ -64,11 +72,12 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
               <Nav />
-              <main className="flex-grow">
+              <main className="flex-grow pb-32">
                 <Router />
               </main>
             </div>
           </WouterRouter>
+          <CookieBanner />
           <Toaster />
         </AppProvider>
       </TooltipProvider>

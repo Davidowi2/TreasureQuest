@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useRoute, useLocation } from "wouter";
-import { Copy, Users, Play, X, Shield, ArrowLeft, User } from "lucide-react";
+import { Copy, Users, Play, X, Shield, ArrowLeft, User, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAppContext } from "@/context/AppContext";
 import { ChatPanel } from "@/components/ChatPanel";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function TeamLobby() {
   const [, params] = useRoute("/team/:teamId/lobby");
@@ -132,7 +133,19 @@ export default function TeamLobby() {
                   {copied ? <span className="text-emerald-500 font-bold text-xs">OK!</span> : <Copy size={20} />}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground mt-4">Share this code with your friends so they can join.</p>
+              <div className="flex justify-center mt-6">
+                <div className="bg-white p-4 rounded-xl border shadow-sm">
+                  <QRCodeSVG 
+                    value={`${window.location.origin}/hunts/${team.huntId}/join?code=${team.inviteCode}`} 
+                    size={180} 
+                    level="H" 
+                    includeMargin={true} 
+                  />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mt-4">
+                Share the code or scan the QR code with your friends so they can join instantly!
+              </p>
             </CardHeader>
           </Card>
 

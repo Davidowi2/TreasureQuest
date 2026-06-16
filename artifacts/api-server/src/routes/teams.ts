@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db, teamsTable, teamMembersTable, huntsTable, teamProgressTable } from "@workspace/db";
 import { authMiddleware } from "../lib/auth";
+import { validateHuntScheduling } from "../lib/huntScheduling";
 import { eq, and } from "drizzle-orm";
 import QRCode from "qrcode";
 import { io } from "../app";
@@ -149,6 +150,12 @@ router.get("/:id/lobby", authMiddleware, async (req: Request, res: Response) => 
       return res.status(404).json({ error: "Team not found" });
     }
 
+    // Validate hunt scheduling
+    const schedulingCheck = await validateHuntScheduling(team.huntId);
+    if (!schedulingCheck.valid) {
+      return res.status(schedulingCheck.status).json({ error: schedulingCheck.error });
+    }
+
     // Verify user is a member of the team
     const member = await (db.query.teamMembersTable as any).findFirst({
       where: (tm: any, { and, eq }: any) =>
@@ -189,6 +196,12 @@ router.post("/:id/start", authMiddleware, async (req: Request, res: Response) =>
     });
     if (!team) {
       return res.status(404).json({ error: "Team not found" });
+    }
+
+    // Validate hunt scheduling
+    const schedulingCheck = await validateHuntScheduling(team.huntId);
+    if (!schedulingCheck.valid) {
+      return res.status(schedulingCheck.status).json({ error: schedulingCheck.error });
     }
 
     // Verify requester is leader

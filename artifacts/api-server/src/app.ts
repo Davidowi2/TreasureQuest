@@ -7,6 +7,8 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { createServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import Redis from "ioredis";
 
 const app: Express = express();
 const httpServer = createServer(app);
@@ -15,6 +17,14 @@ const io = new SocketIOServer(httpServer, {
     origin: "*",
   },
 });
+
+// Set up Redis adapter for Socket.io
+const redisUrl = process.env.REDIS_URL;
+if (redisUrl) {
+  const pubClient = new Redis(redisUrl);
+  const subClient = pubClient.duplicate();
+  io.adapter(createAdapter(pubClient, subClient));
+}
 
 // Global rate limit
 const globalLimiter = rateLimit({

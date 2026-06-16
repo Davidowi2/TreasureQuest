@@ -20,6 +20,12 @@ const socketUserMap = new Map<string, { userId: string; teamId?: string }>(); //
 io.on("connection", (socket: Socket) => {
   logger.info(`Socket connected: ${socket.id}`);
   
+  // Handle joining admin room
+  socket.on("join_admin_global", () => {
+    logger.info(`Socket ${socket.id} joining admin_global room`);
+    socket.join("admin_global");
+  });
+
   socket.on("join_team", async (data: { userId: string; teamId: string }) => {
     const { userId, teamId } = data;
     logger.info(`User ${userId} joining team ${teamId}`);

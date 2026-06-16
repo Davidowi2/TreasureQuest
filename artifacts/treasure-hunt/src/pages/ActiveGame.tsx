@@ -1,13 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, MapPin, AlertCircle, CheckCircle2, Unlock, ChevronRight, BookOpen, Image as ImageIcon, ZoomIn, Music, Play, Pause, MessageCircle, X } from "lucide-react";
+import { Camera, MapPin, AlertCircle, CheckCircle2, Unlock, ChevronRight, BookOpen, Image as ImageIcon, ZoomIn, Music, Play, Pause, MessageCircle, X, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAppContext } from "@/context/AppContext";
+import { fetchAPI } from "@/lib/api";
 import { ConfettiEffect } from "@/components/ConfettiEffect";
 import { ChatPanel } from "@/components/ChatPanel";
+import { Html5Qrcode } from "html5-qrcode";
 
 function AudioPlayer() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -90,6 +93,9 @@ export default function ActiveGame() {
   const [imageZoomed, setImageZoomed] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [lastSeenMsgCount, setLastSeenMsgCount] = useState(0);
+  const [scanningMode, setScanningMode] = useState(false);
+  const qrScannerRef = useRef<Html5Qrcode | null>(null);
+  const qrScannerId = "qr-scanner";
 
   const teamId = params?.teamId;
   const team = teams.find(t => t.id === teamId);
@@ -125,6 +131,76 @@ export default function ActiveGame() {
     ? team.messages.filter(m => !m.isSystem && m.userId !== currentUser?.id).length - lastSeenMsgCount
     : 0;
   const safeUnread = Math.max(0, unreadCount);
+
+  const handleQRSuccess = async (decodedText: string) => {
+    console.log("QR Code scanned:", decodedText);
+    if (!team) return;
+
+    setVerifying(true);
+    setFailureMsg("");
+    setShowUnlock(false);
+
+    try {
+      const response = await fetchAPI(`/api/v1/game/verify-step`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          teamId: teamId,
+          token: decodedText,
+        }),
+      });
+
+      // Stop scanner after success
+      if (qrScannerRef.current) {
+        await qrScannerRef.current.stop();
+      }
+
+      setVerifying(false);
+      setSuccess(true);
+      setScanningMode(false);
+
+      // TODO: Update local team state to advance
+    } catch (e) {
+      console.error(e);
+      setVerifying(false);
+      setFailureMsg("Invalid QR code - please scan the correct checkpoint!");
+      setShowUnlock(false);
+    }
+  };
+
+  const handleQRError = (error: unknown) => {
+    // Ignore continuous scan errors
+  };
+
+  useEffect(() => {
+    if (scanningMode) {
+      const scanner = new Html5Qrcode(qrScannerId);
+      qrScannerRef.current = scanner;
+
+      scanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        handleQRSuccess,
+        handleQRError
+      ).catch(console.error);
+    } else {
+      if (qrScannerRef.current) {
+        qrScannerRef.current.stop().catch(console.error);
+        qrScannerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (qrScannerRef.current) {
+        qrScannerRef.current.stop().catch(console.error);
+      }
+    };
+  }, [scanningMode]);
 
   if (!team || !hunt || team.status !== "active") {
     // If completed, redirect
@@ -301,23 +377,57 @@ export default function ActiveGame() {
               )}
 
               <div className="mt-auto pt-6">
-                <Button 
-                  size="lg" 
-                  className={`w-full h-16 text-lg rounded-2xl shadow-lg transition-all ${verifying ? 'opacity-80 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
-                  onClick={handleSubmitPhoto}
-                  disabled={verifying}
-                >
-                  {verifying ? (
-                    <span className="flex items-center gap-2 animate-pulse">
-                      <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      Verifying...
-                    </span>
+                <Tabs defaultValue="photo" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="photo" className="text-sm">Photo</TabsTrigger>
+                    <TabsTrigger value="qr" className="text-sm">QR Code</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="photo" className="mt-0">
+                    <Button 
+                      size="lg" 
+                      className={`w-full h-16 text-lg rounded-2xl shadow-lg transition-all ${verifying ? 'opacity-80 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
+                      onClick={handleSubmitPhoto}
+                      disabled={verifying}
+                    >
+                      {verifying ? (
+                        <span className="flex items-center gap-2 animate-pulse">
+                          <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          Verifying...
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <Camera size={24} /> Submit Photo Solution
+                        </span>
+                      )}
+                    </Button>
+                  </TabsContent>
+
+                  <TabsContent value="qr" className="mt-0">
+                    {!scanningMode ? (
+                    <Button 
+                      size="lg" 
+                      className="w-full h-16 text-lg rounded-2xl shadow-lg transition-all hover:scale-[1.02]"
+                      onClick={() => setScanningMode(true)}
+                    >
+                      <QrCode size={24} className="mr-2" />
+                      Scan QR Code Checkpoint
+                    </Button>
                   ) : (
-                    <span className="flex items-center gap-2">
-                      <Camera size={24} /> Submit Photo Solution
-                    </span>
+                    <div className="w-full rounded-2xl overflow-hidden border">
+                      <div id={qrScannerId} className="w-full aspect-square bg-black" style={{ minHeight: 300 }} />
+                      <Button 
+                        variant="destructive" 
+                        size="lg" 
+                        className="w-full mt-3"
+                        onClick={() => setScanningMode(false)}
+                      >
+                        Stop Scanning
+                      </Button>
+                    </div>
                   )}
-                </Button>
+                  </TabsContent>
+                </Tabs>
               </div>
             </motion.div>
           ) : (
