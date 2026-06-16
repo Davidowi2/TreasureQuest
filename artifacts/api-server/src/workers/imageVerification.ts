@@ -1,12 +1,9 @@
 import { Worker } from "bullmq";
-import IORedis from "ioredis";
 import { db, verificationJobsTable, clueAttemptsTable, teamProgressTable, cluesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { io } from "../app";
 import { logger } from "../lib/logger";
-
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-const connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null });
+import { redis } from "../lib/queue";
 
 // Mock image similarity check: returns random 0.85-0.99
 function mockImageSimilarityCheck(): number {
@@ -87,7 +84,7 @@ const worker = new Worker("image-verification", async (job) => {
       })
       .where(eq(verificationJobsTable.id, verificationJobId));
   }
-}, { connection });
+}, { connection: redis });
 
 worker.on("failed", (job, err) => {
   logger.error(`Job ${job?.id} failed`, err);
