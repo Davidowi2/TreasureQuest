@@ -1,28 +1,42 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Plus, Settings, Play, Archive, MoreVertical, Eye, Radio } from "lucide-react";
+import { Plus, Settings, Play, Archive, MoreVertical, Eye, Radio, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useAppContext } from "@/context/AppContext";
 import { SoloModeBadge } from "@/components/SoloModeBadge";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAPI } from "@/lib/api";
 
 export default function CreatorDashboard() {
-  const { hunts, setHunts, currentUser } = useAppContext();
+  const { currentUser } = useAppContext();
   const [, setLocation] = useLocation();
   const [copiedHuntId, setCopiedHuntId] = useState<string | null>(null);
 
-  if (!currentUser || (currentUser.role !== "creator" && currentUser.role !== "both")) {
+  if (!currentUser) {
     setLocation("/");
     return null;
   }
 
-  const myHunts = hunts.filter(h => h.creatorId === currentUser.id);
-  const activeHunts = myHunts.filter(h => h.status !== "archived");
-  const archivedHunts = myHunts.filter(h => h.status === "archived");
+  const { data: myHunts, isLoading } = useQuery({
+    queryKey: ["creator-hunts"],
+    queryFn: async () => fetchAPI<any[]>("/api/v1/hunts/creator"),
+  });
 
-  const handleStatusChange = (huntId: string, newStatus: "published" | "archived" | "draft") => {
-    setHunts(hunts.map(h => h.id === huntId ? { ...h, status: newStatus } : h));
+  const activeHunts = (myHunts || []).filter((h: any) => h.status !== "archived");
+  const archivedHunts = (myHunts || []).filter((h: any) => h.status === "archived");
+
+  const handleStatusChange = async (huntId: string, newStatus: "published" | "archived" | "draft") => {
+    try {
+      if (newStatus === "published") {
+        await fetchAPI(`/api/v1/hunts/${huntId}/publish`, { method: "PATCH" });
+      } else if (newStatus === "archived") {
+        await fetchAPI(`/api/v1/hunts/${huntId}/archive`, { method: "PATCH" });
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const HuntRow = ({ hunt }: { hunt: any }) => (
@@ -37,7 +51,7 @@ export default function CreatorDashboard() {
         </div>
         <p className="text-sm text-muted-foreground line-clamp-1">{hunt.description}</p>
         <div className="flex gap-4 text-xs text-muted-foreground font-medium pt-1">
-          <span>{hunt.clues.length} clues</span>
+          <span>{hunt.clues?.length || 0} clues</span>
           <span>•</span>
           <span>{hunt.locationTag}</span>
         </div>
@@ -63,7 +77,7 @@ export default function CreatorDashboard() {
           <Button 
             size="sm" 
             className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            disabled={hunt.clues.length < 2}
+            disabled={(hunt.clues?.length || 0) < 2}
             onClick={() => handleStatusChange(hunt.id, 'published')}
           >
             <Play size={16} className="mr-2" /> Publish
@@ -91,7 +105,7 @@ export default function CreatorDashboard() {
               <Settings size={16} className="mr-2" /> Edit Details
             </DropdownMenuItem>
             {hunt.status === 'published' && (
-              <DropdownMenuItem onClick={() => setLocation(`/hunts/${hunt.id}/join`)}>
+              <DropdownMenuItem onClick={() => setLocation(`/hunt/${hunt.id}/join`)}>
                 <Eye size={16} className="mr-2" /> View Page
               </DropdownMenuItem>
             )}
@@ -110,6 +124,14 @@ export default function CreatorDashboard() {
       </div>
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-5xl min-h-[calc(100vh-4rem)] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl min-h-[calc(100vh-4rem)]">
@@ -133,7 +155,7 @@ export default function CreatorDashboard() {
           </h2>
           {activeHunts.length > 0 ? (
             <div className="space-y-4">
-              {activeHunts.map(hunt => <HuntRow key={hunt.id} hunt={hunt} />)}
+              {activeHunts.map((hunt: any) => <HuntRow key={hunt.id} hunt={hunt} />)}
             </div>
           ) : (
             <div className="text-center py-16 bg-muted/30 rounded-xl border border-dashed">
@@ -149,7 +171,7 @@ export default function CreatorDashboard() {
           <div>
             <h2 className="text-xl font-semibold mb-4 text-muted-foreground">Archived</h2>
             <div className="space-y-4">
-              {archivedHunts.map(hunt => <HuntRow key={hunt.id} hunt={hunt} />)}
+              {archivedHunts.map((hunt: any) => <HuntRow key={hunt.id} hunt={hunt} />)}
             </div>
           </div>
         )}

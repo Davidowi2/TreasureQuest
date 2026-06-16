@@ -27,6 +27,7 @@ import LivePanel from "@/pages/LivePanel";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
 import AdminDashboard from "@/pages/AdminDashboard";
+import HostLobby from "@/pages/HostLobby";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/game/:teamId/complete" component={GameComplete} />
 
       <Route path="/hunt/:huntId/live" component={LivePanel} />
+      <Route path="/hunt/:huntId/lobby" component={HostLobby} />
       <Route path="/admin/hunts/:huntId" component={AdminDashboard} />
 
       <Route component={NotFound} />

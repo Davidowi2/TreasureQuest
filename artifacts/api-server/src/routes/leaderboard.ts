@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
-import { db, teamsTable, teamProgressTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { db, teamsTable, teamProgressTable, huntsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 
@@ -13,67 +13,61 @@ router.get("/:huntId", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "huntId is required" });
     }
 
-    // Fetch all teams with progress for the hunt
-    const teams = await db.query.teamsTable.findMany({
-      where: (t, { eq }) => eq(t.huntId, huntId),
+    // First fetch the hunt to get totalClues
+    const hunt = await db.query.huntsTable.findFirst({
+      where: (h, { eq }) => eq(h.id, huntId),
       with: {
-        progress: true,
+        clues: true,
       },
     });
 
+    if (!hunt) {
+      return res.status(404).json({ error: "Hunt not found" });
+    }
+
+    const totalClues = (hunt.clues as any[]).length;
+
+    // Fetch all teams with progress for the hunt using explicit join
+    const teamsWithProgress = await db
+      .select()
+      .from(teamsTable)
+      .innerJoin(teamProgressTable, eq(teamsTable.id, teamProgressTable.teamId))
+      .where(eq(teamsTable.huntId, huntId));
+
     // Filter out teams still in lobby (status: paused)
-    const eligibleTeams = teams.filter(team => 
-      team.progress && (team.progress.status === "active" || team.progress.status === "completed")
+    const eligibleTeams = teamsWithProgress.filter(row => 
+      (row.team_progress as any).status === "active" || (row.team_progress as any).status === "completed"
     );
 
-    // Calculate duration and prepare for sorting
-    const now = new Date();
-    const teamsWithStats = eligibleTeams.map(team => {
-      const progress = team.progress!;
-      let durationSeconds = 0;
-      let hasFinished = false;
-
-      if (progress.status === "completed" && progress.completedAt && progress.startedAt) {
-        hasFinished = true;
-        durationSeconds = Math.floor(
-          (new Date(progress.completedAt).getTime() - new Date(progress.startedAt).getTime()) / 1000
-        );
-      } else if (progress.status === "active" && progress.startedAt) {
-        durationSeconds = Math.floor(
-          (now.getTime() - new Date(progress.startedAt).getTime()) / 1000
-        );
-      }
+    // Prepare for sorting
+    const teamsWithStats = eligibleTeams.map(row => {
+      const team = row.teams;
+      const progress = row.team_progress as any;
+      const cluesFound = progress.currentStep;
+      const lastActiveTime = progress.ts; // Use ts as last clue solved at or last active
 
       return {
         id: team.id,
         teamName: team.name,
         gameStatus: progress.status,
-        currentStep: progress.currentStep,
+        cluesFound,
+        totalClues,
+        lastActiveTime,
         startedAt: progress.startedAt,
         completedAt: progress.completedAt,
-        durationSeconds,
-        hasFinished,
       };
     });
 
-    // Sort teams
+    // Sort teams: first by cluesFound descending, then by lastActiveTime ascending
     const sortedTeams = [...teamsWithStats].sort((a, b) => {
-      // Completed teams come first
-      if (a.hasFinished && !b.hasFinished) return -1;
-      if (!a.hasFinished && b.hasFinished) return 1;
-
-      // Both completed: sort by duration ascending
-      if (a.hasFinished && b.hasFinished) {
-        return a.durationSeconds - b.durationSeconds;
+      // First sort by clues found (descending)
+      if (a.cluesFound !== b.cluesFound) {
+        return b.cluesFound - a.cluesFound;
       }
-
-      // Both active: sort by currentStep descending first
-      if (a.currentStep !== b.currentStep) {
-        return b.currentStep - a.currentStep;
-      }
-
-      // Same step: sort by duration ascending (faster first)
-      return a.durationSeconds - b.durationSeconds;
+      // Tie-breaker: last active time (ascending: whoever solved that clue first wins)
+      const aTime = a.lastActiveTime ? new Date(a.lastActiveTime).getTime() : 0;
+      const bTime = b.lastActiveTime ? new Date(b.lastActiveTime).getTime() : 0;
+      return aTime - bTime;
     });
 
     // Add rank

@@ -10,7 +10,7 @@ const router = Router();
 // Signup
 router.post("/signup", async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role } = req.body as any;
+    const { name, email, password, role = "both" } = req.body as any;
     const passwordHash = await hashPassword(password);
 
     const existing = await db.query.usersTable.findFirst({
@@ -112,7 +112,7 @@ router.post("/google", async (req: Request, res: Response) => {
         name: name || "Anonymous Player",
         email,
         passwordHash: dummyPasswordHash,
-        role: "player",
+        role: "both",
       } as any).returning();
     }
 

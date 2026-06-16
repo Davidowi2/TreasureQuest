@@ -37,6 +37,7 @@ router.get("/:id", async (req: Request, res: Response) => {
   try {
     const hunt = await db.query.huntsTable.findFirst({
       where: (h: any, { eq }: any) => eq(h.id, req.params.id),
+      with: { clues: true },
     });
     if (!hunt) {
       return res.status(404).json({ error: "Not found" });
@@ -89,10 +90,11 @@ router.patch("/:id/archive", authMiddleware, async (req: Request, res: Response)
 });
 
 // Creator's dashboard hunts
-router.get("/dashboard/hunts", authMiddleware, async (req: Request, res: Response) => {
+router.get("/creator", authMiddleware, async (req: Request, res: Response) => {
   try {
     const hunts = await db.query.huntsTable.findMany({
       where: (h: any, { eq }: any) => eq(h.creatorId, req.user?.id || ""),
+      with: { clues: true },
     });
     return res.json(hunts);
   } catch (e) {
