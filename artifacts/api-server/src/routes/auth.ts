@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { db, usersTable } from "@workspace/db";
-import { hashPassword, verifyPassword, generateToken } from "../lib/auth";
+import { hashPassword, verifyPassword, generateToken, authMiddleware } from "../lib/auth";
 
 const router = Router();
 
@@ -73,8 +73,25 @@ router.post("/logout", (_req: Request, res: Response) => {
 });
 
 // Get current user
-router.get("/me", async (_req: Request, res: Response) => {
-  return res.json({ user: null }); // placeholder
+router.get("/me", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const user = await db.query.usersTable.findFirst({
+      where: (u, { eq }) => eq(u.id, req.user?.id),
+    });
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const safeUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+    return res.json({ user: safeUser });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
 export default router;

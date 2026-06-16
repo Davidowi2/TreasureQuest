@@ -1,6 +1,4 @@
 import { pgTable, timestamp, uuid, pgEnum, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
 import { teamsTable } from "./teams";
 import { usersTable } from "./users";
 import { relations } from "drizzle-orm";
@@ -26,9 +24,3 @@ export const teamMembersRelations = relations(teamMembersTable, ({ one }) => ({
     references: [usersTable.id],
   }),
 }));
-
-export const insertTeamMemberSchema = createInsertSchema(teamMembersTable).omit({ id: true, joinedAt: true });
-export const selectTeamMemberSchema = createSelectSchema(teamMembersTable);
-
-export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
-export type TeamMember = z.infer<typeof selectTeamMemberSchema>;

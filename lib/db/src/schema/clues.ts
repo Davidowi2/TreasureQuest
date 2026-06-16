@@ -1,8 +1,9 @@
 import { pgTable, text, timestamp, uuid, pgEnum, integer, boolean, jsonb, varchar } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
 import { huntsTable } from "./hunts";
 import { relations } from "drizzle-orm";
+
+// Import to avoid circular dependency
+import { verificationJobsTable } from "./verificationJobs";
 
 export const clueTypeEnum = pgEnum("clue_type", ["text", "image", "audio", "interactive_puzzle"]);
 export const puzzleTypeEnum = pgEnum("puzzle_type", ["crossword", "jigsaw"]);
@@ -31,12 +32,3 @@ export const cluesRelations = relations(cluesTable, ({ one, many }) => ({
   }),
   verificationJobs: many(() => verificationJobsTable),
 }));
-
-export const insertClueSchema = createInsertSchema(cluesTable).omit({ id: true, createdAt: true });
-export const selectClueSchema = createSelectSchema(cluesTable);
-
-export type InsertClue = z.infer<typeof insertClueSchema>;
-export type Clue = z.infer<typeof selectClueSchema>;
-
-// Import to avoid circular dependency
-import { verificationJobsTable } from "./verificationJobs";

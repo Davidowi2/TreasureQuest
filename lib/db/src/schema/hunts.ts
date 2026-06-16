@@ -1,8 +1,11 @@
 import { pgTable, text, timestamp, uuid, pgEnum, boolean, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
 import { usersTable } from "./users";
 import { relations } from "drizzle-orm";
+
+// Import here to avoid circular dependencies
+import { cluesTable } from "./clues";
+import { teamsTable } from "./teams";
+import { huntPlayersTable } from "./huntPlayers";
 
 export const huntStatusEnum = pgEnum("hunt_status", ["draft", "published", "archived"]);
 export const huntDifficultyEnum = pgEnum("hunt_difficulty", ["easy", "medium", "hard"]);
@@ -33,14 +36,3 @@ export const huntsRelations = relations(huntsTable, ({ one, many }) => ({
   teams: many(() => teamsTable),
   huntPlayers: many(() => huntPlayersTable),
 }));
-
-export const insertHuntSchema = createInsertSchema(huntsTable).omit({ id: true, createdAt: true });
-export const selectHuntSchema = createSelectSchema(huntsTable);
-
-export type InsertHunt = z.infer<typeof insertHuntSchema>;
-export type Hunt = z.infer<typeof selectHuntSchema>;
-
-// Import here to avoid circular dependencies
-import { cluesTable } from "./clues";
-import { teamsTable } from "./teams";
-import { huntPlayersTable } from "./huntPlayers";

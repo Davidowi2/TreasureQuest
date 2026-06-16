@@ -1,6 +1,4 @@
 import { pgTable, timestamp, uuid, text, varchar, pgEnum, decimal } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
 import { teamsTable } from "./teams";
 import { cluesTable } from "./clues";
 import { relations } from "drizzle-orm";
@@ -30,9 +28,3 @@ export const verificationJobsRelations = relations(verificationJobsTable, ({ one
     references: [cluesTable.id],
   }),
 }));
-
-export const insertVerificationJobSchema = createInsertSchema(verificationJobsTable).omit({ id: true, ts: true, createdAt: true });
-export const selectVerificationJobSchema = createSelectSchema(verificationJobsTable);
-
-export type InsertVerificationJob = z.infer<typeof insertVerificationJobSchema>;
-export type VerificationJob = z.infer<typeof selectVerificationJobSchema>;

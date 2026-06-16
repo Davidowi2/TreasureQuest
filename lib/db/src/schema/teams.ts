@@ -1,9 +1,13 @@
 import { pgTable, text, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
 import { huntsTable } from "./hunts";
 import { usersTable } from "./users";
 import { relations } from "drizzle-orm";
+
+// Imports to avoid circular dependencies
+import { teamMembersTable } from "./teamMembers";
+import { teamProgressTable } from "./teamProgress";
+import { clueAttemptsTable } from "./clueAttempts";
+import { verificationJobsTable } from "./verificationJobs";
 
 export const teamsTable = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -29,15 +33,3 @@ export const teamsRelations = relations(teamsTable, ({ one, many }) => ({
   clueAttempts: many(() => clueAttemptsTable),
   verificationJobs: many(() => verificationJobsTable),
 }));
-
-export const insertTeamSchema = createInsertSchema(teamsTable).omit({ id: true, createdAt: true });
-export const selectTeamSchema = createSelectSchema(teamsTable);
-
-export type InsertTeam = z.infer<typeof insertTeamSchema>;
-export type Team = z.infer<typeof selectTeamSchema>;
-
-// Imports to avoid circular dependencies
-import { teamMembersTable } from "./teamMembers";
-import { teamProgressTable } from "./teamProgress";
-import { clueAttemptsTable } from "./clueAttempts";
-import { verificationJobsTable } from "./verificationJobs";

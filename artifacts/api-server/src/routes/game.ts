@@ -3,8 +3,8 @@ import { authMiddleware } from "../lib/auth";
 import { upload } from "../lib/multer";
 import { uploadImage } from "../lib/cloudinary";
 import { imageVerificationQueue, type ImageVerificationJobData } from "../lib/queue";
-import { db, clueAttemptsTable, cluesTable, teamsTable, verificationJobsTable, teamProgressTable, verificationStatusEnum } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { db, clueAttemptsTable, cluesTable, teamsTable, teamProgressTable, teamMembersTable } from "@workspace/db";
+import { eq, and, desc, asc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { io } from "../app";
 
@@ -13,25 +13,84 @@ const router = Router();
 // Get current clue
 router.get("/:teamId/active-clue", authMiddleware, async (req: Request, res: Response) => {
   try {
-    res.json({ progress: null, clue: null });
+    const teamId = req.params.teamId as string;
+
+    // Verify user is a member of team
+    const member = await (db.query.teamMembersTable as any).findFirst({
+      where: (tm: any, { and, eq }: any) => and(eq(tm.teamId, teamId), eq(tm.userId, req.user?.id)),
+    });
+    if (!member) {
+      return res.status(403).json({ error: "Not a member of this team" });
+    }
+
+    // Get team progress
+    const progress = await (db.query.teamProgressTable as any).findFirst({
+      where: (p: any, { eq }: any) => eq(p.teamId, teamId),
+    });
+    if (!progress) {
+      return res.status(404).json({ error: "Team progress not found" });
+    }
+
+    // Get team
+    const team = await (db.query.teamsTable as any).findFirst({
+      where: (t: any, { eq }: any) => eq(t.id, teamId),
+    });
+    if (!team) {
+      return res.status(404).json({ error: "Team not found" });
+    }
+
+    // Get all clues for hunt
+    const clues = await (db.query.cluesTable as any).findMany({
+      where: (c: any, { eq }: any) => eq(c.huntId, team.huntId),
+      orderBy: (c: any, { asc }: any) => [asc(c.defaultOrder)],
+    });
+    if (!clues.length) {
+      return res.status(404).json({ error: "No clues found for hunt" });
+    }
+
+    // Determine clue index: use clueSequence if available, otherwise currentStep index
+    let clueIndex = progress.currentStep;
+    if (progress.clueSequence && progress.clueSequence.length > 0) {
+      clueIndex = progress.currentStep;
+    }
+
+    if (clueIndex >= clues.length) {
+      return res.status(400).json({ error: "All clues solved" });
+    }
+
+    const clue = clues[clueIndex];
+
+    // Strip sensitive data
+    const safeClue = {
+      id: clue.id,
+      clueType: clue.clueType,
+      hintText: clue.hintText,
+      mediaUrl: clue.mediaUrl,
+      puzzleType: clue.puzzleType,
+      puzzleConfig: clue.puzzleConfig,
+    };
+
+    return res.json({ progress, clue: safeClue });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
 // Verify Step (multipart form)
 router.post("/verify-step", authMiddleware, upload.single("image_file"), async (req: Request, res: Response) => {
   try {
-    const { team_id: teamId, verification_type: verificationType, text_submitted: textSubmittedRaw } = req.body;
-    const textSubmitted = textSubmittedRaw ? (textSubmittedRaw as string) : undefined;
+    const teamId = req.body.team_id as string | undefined;
+    const verificationType = req.body.verification_type as string | undefined;
+    const textSubmittedRaw = req.body.text_submitted as string | undefined;
+    const textSubmitted = textSubmittedRaw ? textSubmittedRaw : undefined;
     const file = req.file;
 
     // Validation
     if (!teamId) {
       return res.status(400).json({ error: "team_id is required" });
     }
-    if (!["image_only", "text_only", "hybrid"].includes(verificationType)) {
+    if (!verificationType || !["image_only", "text_only", "hybrid"].includes(verificationType)) {
       return res.status(400).json({ error: "Invalid verification_type" });
     }
     if ((verificationType === "image_only" || verificationType === "hybrid") && !file) {
@@ -42,19 +101,19 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
     }
 
     // Get team and current clue (let's get team progress first)
-    const team = await db.query.teamsTable.findFirst({ where: (t, { eq }) => eq(t.id, teamId) });
+    const team = await (db.query.teamsTable as any).findFirst({ where: (t: any, { eq }: any) => eq(t.id, teamId) });
     if (!team) {
       return res.status(404).json({ error: "Team not found" });
     }
-    const progress = await db.query.teamProgressTable.findFirst({ where: (p, { eq }) => eq(p.teamId, teamId) });
+    const progress = await (db.query.teamProgressTable as any).findFirst({ where: (p: any, { eq }: any) => eq(p.teamId, teamId) });
     if (!progress) {
       return res.status(404).json({ error: "Team progress not found" });
     }
 
     // Get current clue: for now, let's assume currentStep is index into clueSequence
-    const clues = await db.query.cluesTable.findMany({
-      where: (c, { eq }) => eq(c.huntId, team.huntId),
-      orderBy: (c, { asc }) => [asc(c.defaultOrder)],
+    const clues = await (db.query.cluesTable as any).findMany({
+      where: (c: any, { eq }: any) => eq(c.huntId, team.huntId),
+      orderBy: (c: any, { asc }: any) => [asc(c.defaultOrder)],
     });
     if (progress.currentStep >= clues.length) {
       return res.status(400).json({ error: "All clues solved" });
@@ -62,9 +121,9 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
     const clue = clues[progress.currentStep];
 
     // Get existing attempts for this team and clue
-    const attempts = await db.query.clueAttemptsTable.findMany({
-      where: (a, { and, eq }) => and(eq(a.teamId, teamId), eq(a.clueId, clue.id)),
-      orderBy: (a, { desc }) => [desc(a.createdAt)],
+    const attempts = await (db.query.clueAttemptsTable as any).findMany({
+      where: (a: any, { and, eq }: any) => and(eq(a.teamId, teamId), eq(a.clueId, clue.id)),
+      orderBy: (a: any, { desc }: any) => [desc(a.createdAt)],
     });
 
     // Check cooldown
@@ -72,8 +131,8 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
     if (lastAttempt) {
       // For simplicity, let's track cooldown on clueAttempts or just last attempt time
       // Let's check if last attempt was within 10 minutes and it was 5th attempt
-      const fiveMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-      if (attempts.length >= 5 && lastAttempt.createdAt > fiveMinutesAgo) {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      if (attempts.length >= 5 && lastAttempt.createdAt > tenMinutesAgo) {
         const cooldownUntil = new Date(lastAttempt.createdAt.getTime() + 10 * 60 * 1000);
         return res.json({
           status: "cooldown",
@@ -91,7 +150,6 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
     // Initialize response variables
     let result: any = { status: "pending" };
     let textPassed = true;
-    let needsQueue = false;
     let verificationJobId: string | undefined;
 
     // Check text first for text-only or hybrid
@@ -100,7 +158,7 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
       if (!clue.textAnswer) {
         return res.status(400).json({ error: "This clue does not require a text answer" });
       }
-      textPassed = normalizeText(textSubmitted) === normalizeText(clue.textAnswer);
+      textPassed = normalizeText(textSubmitted as string) === normalizeText(clue.textAnswer);
       if (verificationType === "text_only") {
         result = {
           status: textPassed ? "passed" : "failed",
@@ -116,7 +174,7 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
     if ((verificationType === "image_only" || (verificationType === "hybrid" && textPassed)) && imageUrl) {
       // Create verification job record
       verificationJobId = randomUUID();
-      await db.insert(verificationJobsTable).values({
+      await (db as any).insert((db as any).verificationJobsTable).values({
         id: verificationJobId,
         teamId,
         clueId: clue.id,
@@ -136,7 +194,6 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
       };
       await imageVerificationQueue.add("verify-image", jobData);
 
-      needsQueue = true;
       result = {
         status: "processing",
         job_id: verificationJobId,
@@ -144,7 +201,7 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
     }
 
     // Save clue attempt
-    await db.insert(clueAttemptsTable).values({
+    await (db as any).insert(clueAttemptsTable).values({
       teamId,
       clueId: clue.id,
       attemptsCount: attempts.length + 1,
@@ -166,9 +223,9 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
 
     // If text-only passed, advance step
     if (verificationType === "text_only" && textPassed) {
-      await db.update(teamProgressTable)
+      await (db as any).update(teamProgressTable)
         .set({ currentStep: progress.currentStep + 1 })
-        .where(eq(teamProgressTable.id, progress.id));
+        .where(eq(teamProgressTable.id as any, progress.id));
 
       io.to(`team:${teamId}`).emit("clue_solved", {
         clueId: clue.id,
@@ -177,19 +234,19 @@ router.post("/verify-step", authMiddleware, upload.single("image_file"), async (
       result.status = "passed";
     }
 
-    res.json(result);
+    return res.json(result);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
 // Verify Status
 router.get("/verify-status/:jobId", authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { jobId } = req.params;
-    const job = await db.query.verificationJobsTable.findFirst({
-      where: (j, { eq }) => eq(j.id, jobId),
+    const jobId = req.params.jobId as string;
+    const job = await (db.query as any).verificationJobsTable.findFirst({
+      where: (j: any, { eq }: any) => eq(j.id, jobId),
     });
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
@@ -197,7 +254,7 @@ router.get("/verify-status/:jobId", authMiddleware, async (req: Request, res: Re
     return res.json(job);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 

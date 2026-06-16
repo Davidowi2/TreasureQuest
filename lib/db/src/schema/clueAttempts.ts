@@ -1,6 +1,4 @@
 import { pgTable, timestamp, uuid, integer, text, varchar, pgEnum } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import { z } from "zod";
 import { teamsTable } from "./teams";
 import { cluesTable } from "./clues";
 import { relations } from "drizzle-orm";
@@ -30,9 +28,3 @@ export const clueAttemptsRelations = relations(clueAttemptsTable, ({ one }) => (
     references: [cluesTable.id],
   }),
 }));
-
-export const insertClueAttemptSchema = createInsertSchema(clueAttemptsTable).omit({ id: true });
-export const selectClueAttemptSchema = createSelectSchema(clueAttemptsTable);
-
-export type InsertClueAttempt = z.infer<typeof insertClueAttemptSchema>;
-export type ClueAttempt = z.infer<typeof selectClueAttemptSchema>;

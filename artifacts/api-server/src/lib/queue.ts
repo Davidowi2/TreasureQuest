@@ -9,7 +9,7 @@ const redis = new IORedis(REDIS_URL, {
 });
 
 export const imageVerificationQueue = new Queue("image-verification", {
-  connection: redis,
+  connection: redis as any,
 });
 
 export type ImageVerificationJobData = {
