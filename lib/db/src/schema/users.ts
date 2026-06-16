@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, uuid, pgEnum } from "drizzle-orm/pg-core";
-import { type InferModel } from "drizzle-orm";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
 
 export const userRoleEnum = pgEnum("user_role", ["creator", "player", "both"]);
 
@@ -12,5 +13,8 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export type InsertUser = InferModel<typeof usersTable, "insert">;
-export type User = Omit<InferModel<typeof usersTable, "select">, "passwordHash">;
+export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true });
+export const selectUserSchema = createSelectSchema(usersTable).omit({ passwordHash: true });
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = z.infer<typeof selectUserSchema>;

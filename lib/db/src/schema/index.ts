@@ -5,3 +5,5 @@ export * from "./teams";
 export * from "./teamMembers";
 export * from "./teamProgress";
 export * from "./clueAttempts";
+export * from "./verificationJobs";
+export * from "./huntPlayers";
