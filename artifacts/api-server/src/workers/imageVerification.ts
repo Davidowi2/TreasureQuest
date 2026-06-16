@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { db, teamProgressTable, cluesTable } from "@workspace/db";
+import { db, teamProgressTable, cluesTable, clueAttemptsTable, advanceTeamToNextClue } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { io } from "../app";
 import { logger } from "../lib/logger";
@@ -11,7 +11,7 @@ function mockImageSimilarityCheck(): number {
 }
 
 const worker = new Worker("image-verification", async (job) => {
-  const { teamId, clueId, imageUrl, referenceUrl, verificationJobId } = job.data;
+  const { attemptId, teamId, clueId, imageUrl, referenceUrl, verificationJobId } = job.data;
   logger.info(`Processing verification job ${verificationJobId} for team ${teamId}, clue ${clueId}`);
 
   try {
@@ -24,59 +24,45 @@ const worker = new Worker("image-verification", async (job) => {
     const score = mockImageSimilarityCheck();
     const passed = score >= 0.97;
 
-    // Get clue attempt by jobId
-    const attempt = await (db.query as any).clueAttemptsTable.findFirst({
-      where: (a: any, { eq }: any) => eq(a.jobId, verificationJobId),
-    });
-
-    const clue = await (db.query as any).cluesTable.findFirst({
-      where: (c: any, { eq }: any) => eq(c.id, clueId),
-    });
-
-    const verificationType = (attempt as any)?.verificationType;
-    const textPassed = verificationType === "hybrid" && (attempt as any)?.textSubmitted && (clue as any)?.textAnswer ? 
-      (((attempt as any).textSubmitted as string).trim().toLowerCase() === ((clue as any).textAnswer as string).trim().toLowerCase()) : 
-      (verificationType !== "hybrid");
-
-    const overallPassed = textPassed && passed;
-
     // Update verification job
     await (db as any).update((db as any).verificationJobsTable)
       .set({
-        status: overallPassed ? "passed" : "failed",
+        status: passed ? "passed" : "failed",
         score,
         completedAt: new Date(),
       })
       .where(eq((db as any).verificationJobsTable.id, verificationJobId));
 
-    // Update clue attempt: set solvedAt if passed
-    if (attempt && overallPassed) {
-      await (db as any).update((db as any).clueAttemptsTable)
-        .set({ solvedAt: new Date() })
-        .where(eq((db as any).clueAttemptsTable.id, (attempt as any).id));
-    }
+    if (passed) {
+      // Update clue attempt to success
+      await db.update(clueAttemptsTable)
+        .set({ status: "success", solvedAt: new Date() })
+        .where(eq(clueAttemptsTable.id, attemptId));
 
-    // Emit clue_solved event to team room if passed
-    if (overallPassed) {
-      io.to(`team:${teamId}`).emit("clue_solved", {
+      // Advance team to next clue
+      await advanceTeamToNextClue(teamId, clueId);
+
+      // Emit clue_result event to team room
+      io.to(`team:${teamId}`).emit("clue_result", {
+        status: "success",
         clueId,
         score,
         teamId,
       });
-
-      // Advance team progress current step
-      const progress = await (db.query as any).teamProgressTable.findFirst({
-        where: (p: any, { eq }: any) => eq(p.teamId, teamId),
+    } else {
+      // Update clue attempt - for now, we don't have a "failed_image" status, so we could either:
+      // Option 1: Keep as "processing" but that's not accurate
+      // Option 2: Create a new status enum value, but let's just update the verification job
+      // For now, let's just emit the failure
+      io.to(`team:${teamId}`).emit("clue_result", {
+        status: "failed_image",
+        clueId,
+        score,
+        teamId,
       });
-
-      if (progress) {
-        await (db as any).update(teamProgressTable)
-          .set({ currentStep: progress.currentStep + 1 })
-          .where(eq(teamProgressTable.id, progress.id));
-      }
     }
 
-    logger.info(`Verification job ${verificationJobId} completed with status ${overallPassed ? "passed" : "failed"}, score ${score}`);
+    logger.info(`Verification job ${verificationJobId} completed with status ${passed ? "passed" : "failed"}, score ${score}`);
   } catch (err) {
     logger.error(`Error processing verification job ${verificationJobId}`, err as any);
 

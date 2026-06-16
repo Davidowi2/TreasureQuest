@@ -15,6 +15,7 @@ export const imageVerificationQueue = new Queue("image-verification", {
 });
 
 export type ImageVerificationJobData = {
+  attemptId: string;
   teamId: string;
   clueId: string;
   imageUrl: string;

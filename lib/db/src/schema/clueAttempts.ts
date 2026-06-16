@@ -4,6 +4,7 @@ import { cluesTable } from "./clues";
 import { relations } from "drizzle-orm";
 
 export const verificationTypeEnum = pgEnum("verification_type", ["image_only", "text_only", "hybrid"]);
+export const clueAttemptStatusEnum = pgEnum("clue_attempt_status", ["failed_text", "processing", "success"]);
 
 export const clueAttemptsTable = pgTable("clue_attempts", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -15,6 +16,7 @@ export const clueAttemptsTable = pgTable("clue_attempts", {
   imageUrl: varchar("image_url"),
   verificationType: verificationTypeEnum("verification_type").notNull().default("image_only"),
   jobId: varchar("job_id"),
+  status: clueAttemptStatusEnum("status").notNull().default("processing"),
   solvedAt: timestamp("solved_at"),
 });
 
