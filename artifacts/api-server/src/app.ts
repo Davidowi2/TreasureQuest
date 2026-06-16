@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from "express";
 import cors from "cors";
 import { pinoHttp } from "pino-http";
 import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { createServer } from "http";
@@ -14,6 +15,30 @@ const io = new SocketIOServer(httpServer, {
     origin: "*",
   },
 });
+
+// Global rate limit
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests per window
+  message: "Too many requests, please try again later.",
+});
+app.use(globalLimiter);
+
+// Auth routes limit
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 requests per window
+  message: "Too many auth requests, please try again later.",
+});
+app.use("/api/v1/auth", authLimiter);
+
+// Verify step limit
+const verifyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 requests per window
+  message: "Too many verification requests, please try again later.",
+});
+app.use("/api/v1/game/verify-step", verifyLimiter);
 
 app.use(
   pinoHttp({
