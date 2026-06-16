@@ -33,7 +33,7 @@ router.post("/signup", async (req: Request, res: Response) => {
     const safeUser: any = {
       id: user.id, name: user.name, email: user.email, role: user.role,
     };
-    return res.json({ user: safeUser });
+    return res.json({ user: safeUser, token });
 
   } catch (e) {
     console.error(e);
@@ -62,7 +62,7 @@ router.post("/login", async (req: Request, res: Response) => {
     const safeUser: any = {
       id: user.id, name: user.name, email: user.email, role: user.role,
     };
-    return res.json({ user: safeUser });
+    return res.json({ user: safeUser, token });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: "Server error" });
@@ -131,7 +131,7 @@ router.post("/google", async (req: Request, res: Response) => {
     const safeUser: any = {
       id: user.id, name: user.name, email: user.email, role: user.role,
     };
-    return res.json({ user: safeUser });
+    return res.json({ user: safeUser, token });
   } catch (e) {
     console.error("Google OAuth error:", e);
     return res.status(401).json({ error: "Invalid ID token" });

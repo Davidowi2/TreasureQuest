@@ -7,15 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAppContext } from "@/context/AppContext";
-import { fetchAPI } from "@/lib/api";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { login, setCurrentUser } = useAppContext();
+  const { login, googleLogin, isLoading } = useAppContext();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,25 +33,16 @@ export default function Login() {
   };
 
   const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
     setError("");
     try {
       // For now, we'll simulate getting an idToken - in production, you'd use the Google Sign-In SDK
       const mockIdToken = "mock_google_id_token_" + Date.now();
       
-      // Call our backend's Google auth endpoint
-      const data = await fetchAPI<{ user: any }>("/api/v1/auth/google", {
-        method: "POST",
-        body: JSON.stringify({ idToken: mockIdToken }),
-      });
-      
-      setCurrentUser(data.user);
+      await googleLogin(mockIdToken);
       setLocation("/dashboard");
     } catch (e) {
       console.error("Google sign-in failed", e);
       setError("Google sign-in failed. Please try again.");
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
@@ -83,7 +72,7 @@ export default function Login() {
               variant="outline" 
               className="w-full h-11 text-base font-medium"
               onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading}
+              disabled={isLoading}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -103,7 +92,7 @@ export default function Login() {
                   fill="#EA4335"
                 />
               </svg>
-              {isGoogleLoading ? "Signing in..." : "Continue with Google"}
+              {isLoading ? "Signing in..." : "Continue with Google"}
             </Button>
 
             <div className="relative my-6">
@@ -142,8 +131,8 @@ export default function Login() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4 pt-4">
-            <Button type="submit" className="w-full h-11 text-base font-semibold">
-              Log In
+            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Log In"}
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
